@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://athenatheowl.example/review-queue/promotion-record.schema.json",
+  "title": "PromotionRecord",
+  "description": "A typed wrapper carrying an AI-generated candidate, its provenance, the diff against current state, and the verdicts that promote or reject it.",
+  "type": "object",
+  "required": [
+    "id",
+    "record_type",
+    "candidate_ref",
+    "provenance_ref",
+    "diff",
+    "status",
+    "target",
+    "created_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^rec-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{3,}$",
+      "description": "Stable record id. Format: rec-YYYY-MM-DD-NNN."
+    },
+    "record_type": {
+      "type": "string",
+      "description": "Open enum naming the candidate kind. v0 known values: memory-update, test-case, skill, brief, contract-clause, post.",
+      "examples": [
+        "memory-update",
+        "test-case",
+        "skill",
+        "brief",
+        "contract-clause",
+        "post"
+      ]
+    },
+    "candidate_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Pointer at the candidate payload. Relative path for in-repo candidates, URI for external candidates."
+    },
+    "provenance_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9+.-]*://",
+      "description": "URI-shaped reference to the agent run that produced the candidate. The CLI refuses to submit a record with an empty provenance ref."
+    },
+    "diff": {
+      "type": "string",
+      "description": "Unified text diff or RFC 6902 JSON-patch text. Computed by the submitter, not the reviewer."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "published",
+        "superseded"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "pattern": "^(file|repo)://",
+      "description": "URI describing where an approved record ships. v0 supports file:// and repo:// only."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of when the record entered the queue."
+    },
+    "verdicts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/verdict" },
+      "default": []
+    }
+  },
+  "$defs": {
+    "verdict": {
+      "type": "object",
+      "required": ["reviewer", "decided_at", "decision"],
+      "properties": {
+        "reviewer": { "type": "string", "minLength": 1 },
+        "decided_at": { "type": "string", "format": "date-time" },
+        "decision": {
+          "type": "string",
+          "enum": ["approve", "reject", "edit"]
+        },
+        "edit_diff": {
+          "type": "string",
+          "description": "Required when decision is edit. The diff between the original candidate and the reviewer's edited candidate."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional reviewer comment, free text."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "decision": { "const": "edit" } } },
+          "then": { "required": ["edit_diff"] }
+        }
+      ]
+    }
+  }
+}
