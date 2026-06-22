@@ -12,7 +12,9 @@ from review_queue import (
     publish as publish_mod,
     records as records_mod,
     report as report_mod,
+    schema as schema_mod,
     score as score_mod,
+    state as state_mod,
     submit as submit_mod,
 )
 
@@ -32,6 +34,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Repo root directory (defaults to cwd).",
     )
     sub = p.add_subparsers(dest="command", required=True)
+
+    sub.add_parser(
+        "validate",
+        help=(
+            "Validate every committed promotion-record under queue/, decided/, "
+            "and examples/ against the schema and state machine. No args needed."
+        ),
+    )
 
     s = sub.add_parser("submit", help="Wrap a candidate in a promotion-record.")
     s.add_argument("--candidate", required=True, help="Path to the candidate file.")
@@ -118,6 +128,32 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     repo_root = Path(args.repo_root).resolve()
+
+    if args.command == "validate":
+        roots = _default_roots(repo_root)
+        records = records_mod.iter_records(roots)
+        if not records:
+            print("validate: no records found under queue/, decided/, or examples/")
+            return 0
+        failures: list[str] = []
+        for r in records:
+            try:
+                rel = r.path.relative_to(repo_root)
+            except ValueError:
+                rel = r.path
+            try:
+                schema_mod.validate(r.fm)
+                state_mod.consistency_check(r.fm)
+            except (schema_mod.SchemaError, state_mod.TransitionError) as exc:
+                failures.append(f"{rel}: {exc}")
+                continue
+            print(f"ok   {rel}")
+        if failures:
+            for f in failures:
+                print(f"FAIL {f}", file=sys.stderr)
+            return 1
+        print(f"validate: OK  {len(records)} record(s)")
+        return 0
 
     if args.command == "submit":
         candidate_path = (repo_root / args.candidate).resolve()
