@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://athenatheowl.example/review-queue/target.schema.json",
+  "title": "Target",
+  "description": "Where an approved promotion-record ships. v0 supports file:// and repo:// URI schemes.",
+  "type": "object",
+  "required": ["uri"],
+  "properties": {
+    "uri": {
+      "type": "string",
+      "pattern": "^(file|repo)://"
+    },
+    "scheme": {
+      "type": "string",
+      "enum": ["file", "repo"]
+    }
+  },
+  "oneOf": [
+    {
+      "title": "FileTarget",
+      "description": "A writable path on the local filesystem. Format: file:///absolute/path or file://./relative/path.",
+      "properties": {
+        "uri": { "pattern": "^file://" }
+      },
+      "required": ["uri"]
+    },
+    {
+      "title": "RepoTarget",
+      "description": "A path inside a named repo. Format: repo://<repo-name>/<path/inside/repo>.",
+      "properties": {
+        "uri": { "pattern": "^repo://[a-zA-Z0-9._-]+/.+" }
+      },
+      "required": ["uri"]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://athenatheowl.example/review-queue/candidate.schema.json",
+  "title": "Candidate",
+  "description": "Optional wrapper for structured candidates. Text candidates may skip this wrapper and be referenced directly by candidate_ref.",
+  "type": "object",
+  "required": ["record_type", "payload"],
+  "properties": {
+    "record_type": {
+      "type": "string",
+      "description": "Matches the record_type on the parent promotion-record."
+    },
+    "payload": {
+      "description": "The candidate content. Shape depends on record_type."
+    },
+    "source": {
+      "type": "object",
+      "description": "Optional metadata about the producing agent.",
+      "properties": {
+        "agent": { "type": "string" },
+        "model": { "type": "string" },
+        "run_id": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "record_type": { "const": "memory-update" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["target_file", "new_text"],
+            "properties": {
+              "target_file": { "type": "string" },
+              "new_text": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "record_type": { "const": "test-case" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["name", "input", "expected"],
+            "properties": {
+              "name": { "type": "string" },
+              "input": {},
+              "expected": {}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "record_type": { "const": "skill" } } },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "required": ["name", "body"],
+            "properties": {
+              "name": { "type": "string" },
+              "body": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

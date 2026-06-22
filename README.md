@@ -78,7 +78,7 @@ review-queue/
 
 Future directories (named in specs, not created yet):
 
-- `src/review_queue/` — CLI and runtime
+- `review_queue/` — CLI and runtime
 - `schemas/` — promotion-record, candidate, target schemas
 - `queue/` — typed records, one file per pending candidate
 - `decided/` — typed records for approved / rejected candidates
