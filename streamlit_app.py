@@ -15,8 +15,12 @@ from pathlib import Path
 
 import streamlit as st
 
+from review_queue import frontmatter as fm_mod
 from review_queue import records as records_mod
+from review_queue import schema as schema_mod
 from review_queue import show as show_mod
+from review_queue import state as state_mod
+from review_queue.decide import _decision_to_status
 
 REPO = Path(__file__).resolve().parent
 ROOTS = [REPO / "queue", REPO / "decided", REPO / "examples"]
@@ -141,8 +145,105 @@ if verdicts:
 else:
     st.markdown("_no verdict yet - this record is pending a human decision._")
 
+# ----------------------------------------------------------------------------
+# interactive: validate your own promotion-record + probe the state machine.
+# this drives the repo's real engine - frontmatter.loads -> schema.validate ->
+# state.consistency_check, then state.assert_transition for a proposed verdict.
+# no lookups, no hardcoded verdict: the same functions the CLI's validate/decide
+# verbs use run here, live, on whatever you paste.
+# ----------------------------------------------------------------------------
+st.divider()
+st.subheader("validate a record yourself")
+st.caption(
+    "paste a promotion-record's front-matter block (the part between the `---` "
+    "fences) and run the real validator + state machine live. this calls "
+    "`review_queue.frontmatter.loads`, `review_queue.schema.validate`, and "
+    "`review_queue.state.consistency_check` - the exact code the `validate` and "
+    "`decide` CLI verbs use. edit a field and watch a pass flip to a fail and why."
+)
+
+_PREFILL = (
+    "id: rec-2026-08-14-001\n"
+    "record_type: memory-update\n"
+    "candidate_ref: examples/candidates/mem-2026-08-14.md\n"
+    "provenance_ref: trace://athena-site/ops/event-log/2026-08-14.jsonl#evt-42\n"
+    'diff: "--- /dev/null\\n+++ note.md\\n@@ -0,0 +1,1 @@\\n+a memory line\\n"\n'
+    "status: pending\n"
+    'target: "file://docs/memory/scoring-pipeline-quirks.md"\n'
+    "created_at: 2026-08-14T12:34:56Z\n"
+    "verdicts: []"
+)
+
+src = st.text_area(
+    "record front-matter",
+    value=_PREFILL,
+    height=260,
+    help="just the front-matter key: value lines. don't include the `---` fences.",
+)
+
+fm: dict | None = None
+parse_err: str | None = None
+try:
+    fm = fm_mod.loads(src)
+except Exception as e:  # noqa: BLE001 - surface any parse error to the user
+    parse_err = f"{type(e).__name__}: {e}"
+
+st.markdown("**1. schema validation** (`schema.validate`)")
+schema_ok = False
+if parse_err is not None:
+    st.error(f"could not parse front-matter: {parse_err}")
+elif fm is not None:
+    try:
+        schema_mod.validate(fm)
+        schema_ok = True
+        st.success("PASS - record matches the promotion-record schema.")
+    except schema_mod.SchemaError as e:
+        st.error(f"FAIL - {e}")
+
+st.markdown("**2. status / verdicts consistency** (`state.consistency_check`)")
+consistency_ok = False
+if fm is not None and parse_err is None:
+    try:
+        state_mod.consistency_check(fm)
+        consistency_ok = True
+        st.success(
+            f"PASS - status `{fm.get('status')}` is consistent with "
+            f"{len(fm.get('verdicts') or [])} verdict(s) on file."
+        )
+    except state_mod.TransitionError as e:
+        st.error(f"FAIL - {e}")
+
+st.markdown("**3. propose a verdict** (`state.assert_transition`)")
+if fm is not None and parse_err is None and schema_ok and consistency_ok:
+    cur = fm.get("status", "?")
+    decision = st.selectbox(
+        "if a reviewer decides...",
+        options=["approve", "reject", "edit"],
+        help="the same decision->status map the `decide` verb uses.",
+    )
+    target_status = _decision_to_status(decision)
+    if state_mod.can_transition(cur, target_status):
+        st.success(
+            f"ALLOWED - `{decision}` would move this record "
+            f"`{cur}` -> `{target_status}`."
+        )
+    else:
+        try:
+            state_mod.assert_transition(cur, target_status)
+        except state_mod.TransitionError as e:
+            st.error(
+                f"BLOCKED - {e}. (from `{cur}` the state machine only allows: "
+                f"{sorted(state_mod.ALLOWED_TRANSITIONS.get(cur, set())) or 'nothing - terminal state'}.)"
+            )
+else:
+    st.caption(
+        "fix the schema / consistency checks above first - a verdict can only be "
+        "proposed against a valid record."
+    )
+
 st.caption(
     "v0.1 ships committed example records. the schema + state machine live in "
     "`review_queue/`; this page reads the committed records under queue/, decided/, "
-    "examples/. repo: github.com/AthenaTheOwl/review-queue"
+    "examples/ and runs the same validator live on your input. "
+    "repo: github.com/AthenaTheOwl/review-queue"
 )
