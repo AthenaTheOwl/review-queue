@@ -39,9 +39,8 @@ queue as a UI feature, not as a typed primitive with a schema.
 
 ## Status
 
-v0 scaffold; no implementation yet. The specs ledger names the first
-set of requirements (R-RQ-001 through R-RQ-010). The first PR after
-this scaffold lands the promotion-record schema and the CLI skeleton.
+
+v0.1 shipped and runs end to end. The entry command `python -m review_queue validate` runs. See `specs/0002-design/` for the v0.1 scope and `STATUS.md` (where present) for the current state and next-feature queue.
 
 ## How to run
 
