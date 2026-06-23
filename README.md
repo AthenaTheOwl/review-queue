@@ -39,23 +39,56 @@ queue as a UI feature, not as a typed primitive with a schema.
 
 ## Status
 
-
-v0.1 shipped and runs end to end. The entry command `python -m review_queue validate` runs. See `specs/0002-design/` for the v0.1 scope and `STATUS.md` (where present) for the current state and next-feature queue.
+v0.1 shipped and runs end to end. The CLI is fully wired: `show`,
+`validate`, `submit`, `list`, `decide`, `publish`, `score`, and `report`
+all run. Four committed promotion-records (one pending, one approved, one
+rejected, one published) ship under `queue/`, `decided/`, and `examples/`
+so the queue is demonstrable without a manual submit. See
+`specs/0002-design/` for the v0.1 scope and `STATUS.md` for the
+next-feature queue.
 
 ## How to run
 
-Placeholder; will land in spec 0002. v0 ships the schema, the CLI
-skeleton, and one example promotion-record under
-`examples/` showing the shape. The CLI commands are not yet wired.
-
-The eventual CLI shape (target for spec 0003):
+No-arg readable view of the committed queue (rows awaiting a verdict
+first, then most recent):
 
 ```
-python -m review_queue submit --candidate path/to/candidate.yaml --provenance trace.json
-python -m review_queue list --status pending
-python -m review_queue decide --record-id <id> --verdict approved --reviewer vignesh
-python -m review_queue publish --record-id <id>
+python -m review_queue show
 ```
+
+The rest of the verbs:
+
+```
+python -m review_queue validate                       # schema + state-machine check on every record
+python -m review_queue list --status pending          # filter the queue
+python -m review_queue submit --candidate path/to/candidate.md \
+    --provenance trace://run/1 --target file://out.md  # wrap a candidate as a record
+python -m review_queue decide --record-id <id> --verdict approve --reviewer you
+python -m review_queue publish --record-id <id>        # ship an approved record to its target
+python -m review_queue score --dry-run                 # calibration metrics over the queue
+python -m review_queue report                          # read the calibration ledger
+```
+
+## live demo
+
+A Streamlit page renders the same human-gate queue interactively: status
+metrics, a ranked queue table, and a record inspector (pick a record, see
+its diff, provenance, and verdicts). It reads the committed records
+directly - no network, no secrets.
+
+Run it locally:
+
+```
+python -m uv run --with streamlit streamlit run streamlit_app.py
+# or, if streamlit + this repo are installed:
+streamlit run streamlit_app.py
+```
+
+Deploy on Streamlit Community Cloud: New app -> repo
+`AthenaTheOwl/review-queue`, branch `main`, main file `streamlit_app.py`.
+The root `requirements.txt` pins `streamlit` plus this repo (`.`).
+
+<!-- live url: (paste the Streamlit Community Cloud URL here once deployed) -->
 
 ## Layout
 

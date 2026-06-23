@@ -23,6 +23,45 @@ FRONTMATTER_RE = re.compile(
 )
 
 
+def _unescape(s: str) -> str:
+    """Reverse the escaping applied by `_escape` for double-quoted scalars."""
+    out: list[str] = []
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        if ch == "\\" and i + 1 < len(s):
+            nxt = s[i + 1]
+            if nxt == "n":
+                out.append("\n")
+                i += 2
+                continue
+            if nxt == "t":
+                out.append("\t")
+                i += 2
+                continue
+            if nxt == '"':
+                out.append('"')
+                i += 2
+                continue
+            if nxt == "\\":
+                out.append("\\")
+                i += 2
+                continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _escape(s: str) -> str:
+    """Escape a string so it stays a single physical line inside double quotes."""
+    return (
+        s.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\t", "\\t")
+    )
+
+
 def split(text: str) -> tuple[str, str]:
     """Return (frontmatter_text, body). Raises ValueError if no fm block."""
     m = FRONTMATTER_RE.match(text)
@@ -43,9 +82,9 @@ def _coerce(raw: str) -> Any:
         return False
     if s == "null" or s == "~":
         return None
-    if (s.startswith('"') and s.endswith('"')) or (
-        s.startswith("'") and s.endswith("'")
-    ):
+    if s.startswith('"') and s.endswith('"') and len(s) >= 2:
+        return _unescape(s[1:-1])
+    if s.startswith("'") and s.endswith("'") and len(s) >= 2:
         return s[1:-1]
     try:
         return int(s)
@@ -163,8 +202,12 @@ def _dump_scalar(v: Any) -> str:
     if isinstance(v, (int, float)):
         return str(v)
     s = str(v)
-    if any(ch in s for ch in (":", "#", "[", "]", "{", "}", "&", "*", "!", "|", ">", "%", "@", "`")):
-        return '"' + s.replace('"', '\\"') + '"'
+    needs_quote = any(
+        ch in s
+        for ch in (":", "#", "[", "]", "{", "}", "&", "*", "!", "|", ">", "%", "@", "`", "\n", "\t", "\\", '"')
+    )
+    if needs_quote:
+        return '"' + _escape(s) + '"'
     return s
 
 

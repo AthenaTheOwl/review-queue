@@ -17,6 +17,24 @@ def test_cli_help_exits_zero(capsys: pytest.CaptureFixture) -> None:
     assert exc_info.value.code == 0
 
 
+def test_cli_show_renders_ranked_queue() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = cli.main(["--repo-root", str(repo_root), "show"])
+    out = buf.getvalue()
+    assert rc == 0
+    # header + committed records present
+    assert "promotion-record queue" in out
+    assert "rec-2026-08-14-001" in out
+    assert "rec-2026-08-18-001" in out
+    # pending row is ranked above the published row
+    assert out.index("rec-2026-08-18-001") < out.index("rec-2026-08-14-001")
+    # the headline names the pending record awaiting a verdict
+    assert "needs attention" in out
+    assert "pending" in out
+
+
 def test_cli_list_returns_example_record() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     buf = io.StringIO()

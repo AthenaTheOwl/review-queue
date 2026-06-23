@@ -14,6 +14,7 @@ from review_queue import (
     report as report_mod,
     schema as schema_mod,
     score as score_mod,
+    show as show_mod,
     state as state_mod,
     submit as submit_mod,
 )
@@ -34,6 +35,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Repo root directory (defaults to cwd).",
     )
     sub = p.add_subparsers(dest="command", required=True)
+
+    sub.add_parser(
+        "show",
+        help=(
+            "Print a readable, ranked view of the committed promotion-records "
+            "(rows awaiting a verdict first). Read-only, no args needed."
+        ),
+    )
 
     sub.add_parser(
         "validate",
@@ -128,6 +137,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     repo_root = Path(args.repo_root).resolve()
+
+    if args.command == "show":
+        roots = _default_roots(repo_root)
+        records = records_mod.iter_records(roots)
+        print(show_mod.render(records))
+        return 0
 
     if args.command == "validate":
         roots = _default_roots(repo_root)

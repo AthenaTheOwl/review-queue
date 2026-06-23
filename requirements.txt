@@ -1,0 +1,6 @@
+# Streamlit Community Cloud reads this file. The app (streamlit_app.py) reads the
+# committed promotion-records under queue/, decided/, examples/ directly and uses
+# the local review_queue package to load + rank them, so it needs streamlit plus
+# this repo installed (the `.` line). review_queue has no third-party deps.
+streamlit>=1.40
+.
