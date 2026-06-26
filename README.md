@@ -1,62 +1,38 @@
-# ReviewQueue
+# review-queue
 
-Human-gated promotion workflow for AI-generated content. AI proposes N candidate {memory updates, tests, skills, briefs, contracts, posts}; a reviewer approves, rejects, or edits with full diff and provenance; approved candidates ship via a configured target.
+A draft came in claiming the ERCOT large-load queue doubled quarter over quarter. The source was one screenshot. It sits in the queue now with a recorded verdict — rejected, by a named human, at 14:55:10 — because "doubled quarter over quarter" with no queue export behind it is a headline, not a fact. review-queue is the thing that made someone stop and say no before it shipped.
 
-## What this is
+## What it does
 
-A CLI plus a typed schema for candidate-promotion records. The default
-in most teams is auto-promote; the default here is human-gate. AI
-generates a candidate; the candidate lands in a queue as a typed record;
-a human acts on it; the action is logged. Nothing ships without a
-recorded approval.
+An agent produces a candidate — a test case, a memory update, a draft brief, a skill, a contract clause. Most pipelines auto-promote it. This one doesn't. The candidate lands in a queue as a typed record carrying its provenance, its diff against current state, and a verdict slot that starts empty. A human approves, rejects, or edits. The action is logged. Only then does anything ship.
 
-The shape is generic across content types:
+The record is the point. A `candidate` is whatever the upstream agent wrote. A `promotion-record` wraps it with where it came from, what it changes, and who signed off. A `target` is where an approved record goes — a file path, a PR, a post. review-queue doesn't write candidates; it receives them and stands between them and production. The CLI is the queue, the verdict-recorder, and the publisher, and nothing else.
 
-- a `candidate` is whatever the upstream agent produced (a YAML test
-  case, a Markdown memory update, a draft contract clause)
-- a `promotion-record` carries the candidate, its provenance, the
-  diff against current state, and the reviewer's verdict
-- a `target` is where an approved candidate goes (a file path, a
-  GitHub PR, a Substack post)
+## Try it
 
-ReviewQueue does not generate candidates. It receives them. The CLI is
-the queue plus the verdict-recorder plus the publisher.
-
-## Who uses it
-
-Editorial ops at AI-content publishers. Prompt-engineering teams at
-firms maintaining one hundred or more prompts or skills. Knowledge-base
-maintainers at companies running RAG over internal docs. Anyone who
-has reinvented this badly in Jira, Notion, or Asana.
-
-## Why now
-
-Every team running production AI has rebuilt this primitive informally,
-without typed-artifact discipline or provenance. The dream-promotion
-discipline from the CDCP operating model is exactly the missing
-primitive. Existing tools (Notion AI, Anthropic Workbench) treat the
-queue as a UI feature, not as a typed primitive with a schema.
-
-## Status
-
-v0.1 shipped and runs end to end. The CLI is fully wired: `show`,
-`validate`, `submit`, `list`, `decide`, `publish`, `score`, and `report`
-all run. Four committed promotion-records (one pending, one approved, one
-rejected, one published) ship under `queue/`, `decided/`, and `examples/`
-so the queue is demonstrable without a manual submit. See
-`specs/0002-design/` for the v0.1 scope and `STATUS.md` for the
-next-feature queue.
-
-## How to run
-
-No-arg readable view of the committed queue (rows awaiting a verdict
-first, then most recent):
+No args, no setup. It reads the committed records and prints the queue, rows awaiting a verdict first:
 
 ```
 python -m review_queue show
 ```
 
-The rest of the verbs:
+```
+review-queue - promotion-record queue
+4 record(s) - pending=1  approved=1  published=1  rejected=1 (ranked: rows awaiting a verdict first, then most recent)
+
+id                     status      type           decision  created              target
+---------------------------------------------------------------------------------------
+rec-2026-08-18-001     pending     test-case      -         2026-08-18T09:12:00Z file://tests/test_loader_bare_scheme.py
+rec-2026-08-17-001     approved    skill          edit      2026-08-17T10:00:00Z file://skills/redact-check.md
+rec-2026-08-14-001     published   memory-update  approve   2026-08-14T12:34:56Z file://docs/memory/scoring-pipeline-quirks.md
+rec-2026-08-16-001     rejected    brief          reject    2026-08-16T14:20:00Z file://drafts/ercot-queue-doubled.md
+
+needs attention: 1 record(s) pending a human verdict - oldest is rec-2026-08-18-001 (test-case, queued 2026-08-18T09:12:00Z). decide with `python -m review_queue decide --record-id rec-2026-08-18-001 --verdict approve --reviewer <you>`.
+```
+
+One record is still pending. The other three carry a decision and the name of who made it. The queue's whole job is to keep that pending row pending until a human clears it.
+
+## The rest of the verbs
 
 ```
 python -m review_queue validate                       # schema + state-machine check on every record
@@ -69,14 +45,9 @@ python -m review_queue score --dry-run                 # calibration metrics ove
 python -m review_queue report                          # read the calibration ledger
 ```
 
-## live demo
+## Live demo
 
-A Streamlit page renders the same human-gate queue interactively: status
-metrics, a ranked queue table, and a record inspector (pick a record, see
-its diff, provenance, and verdicts). It reads the committed records
-directly - no network, no secrets.
-
-Run it locally:
+A Streamlit page renders the same human-gate queue interactively: status metrics, a ranked queue table, and a record inspector — pick a record, read its diff, its provenance, and its verdicts. It reads the committed records directly. No network, no secrets.
 
 ```
 python -m uv run --with streamlit streamlit run streamlit_app.py
@@ -84,37 +55,27 @@ python -m uv run --with streamlit streamlit run streamlit_app.py
 streamlit run streamlit_app.py
 ```
 
-Deploy on Streamlit Community Cloud: New app -> repo
-`AthenaTheOwl/review-queue`, branch `main`, main file `streamlit_app.py`.
-The root `requirements.txt` pins `streamlit` plus this repo (`.`).
+Deploy on Streamlit Community Cloud: New app -> repo `AthenaTheOwl/review-queue`, branch `main`, main file `streamlit_app.py`. The root `requirements.txt` pins `streamlit` plus this repo (`.`).
 
 <!-- live url: (paste the Streamlit Community Cloud URL here once deployed) -->
+
+## How it connects
+
+review-queue is the gate the rest of the portfolio empties into. Other repos produce the candidates; this one holds them until a human acts:
+
+- [ai-field-brief](https://github.com/AthenaTheOwl/ai-field-brief) — drafts briefs that land here as candidates. The rejected ERCOT row above came off one of its traces.
+- [procurement-negotiation-lab](https://github.com/AthenaTheOwl/procurement-negotiation-lab) — shares the factory-checkpoint pattern, where an agent's output waits on a recorded decision before it counts.
 
 ## Layout
 
 ```
-review-queue/
-  README.md
-  LICENSE
-  AGENTS.md
-  .gitignore
-  specs/
-    0001-foundation/
-      requirements.md
-      design.md
-      tasks.md
-      acceptance.md
-  docs/
-    first-pr.md
+review_queue/   cli, show, decide, publish, submit, score, report, schema, state, ledger
+schemas/        promotion-record, candidate, target
+queue/          typed records, one file per pending candidate
+decided/        approved / rejected records
+examples/       a published record + the candidates the queue rows wrap
+specs/  docs/  scripts/  data/  decisions/
 ```
-
-Future directories (named in specs, not created yet):
-
-- `review_queue/` — CLI and runtime
-- `schemas/` — promotion-record, candidate, target schemas
-- `queue/` — typed records, one file per pending candidate
-- `decided/` — typed records for approved / rejected candidates
-- `examples/` — example promotion records demonstrating the shape
 
 ## License
 
