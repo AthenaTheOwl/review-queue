@@ -37,11 +37,17 @@ def read_runs(ledger_path: Path) -> list[dict[str, Any]]:
     if not ledger_path.exists():
         return []
     out: list[dict[str, Any]] = []
-    for line in ledger_path.read_text(encoding="utf-8").splitlines():
+    for i, line in enumerate(ledger_path.read_text(encoding="utf-8").splitlines(), start=1):
         line = line.strip()
         if not line:
             continue
-        out.append(json.loads(line))
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            # A single bad line should name the file and line, not dump a traceback.
+            raise ValueError(
+                f"malformed ledger line {i} in {ledger_path}: {exc.msg}"
+            ) from exc
     return out
 
 

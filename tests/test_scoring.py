@@ -62,6 +62,26 @@ def test_score_single_approve_row() -> None:
     assert out["records"] == ["rec-1"]
 
 
+def test_score_min_and_max_latency_are_distinct() -> None:
+    rows = [
+        _make_record(
+            "rec-fast",
+            created_at="2026-08-14T12:00:00Z",
+            decided_at="2026-08-14T12:10:00Z",  # 600s
+        ),
+        _make_record(
+            "rec-slow",
+            created_at="2026-08-14T12:00:00Z",
+            decided_at="2026-08-14T12:30:00Z",  # 1800s
+        ),
+    ]
+    out = score_mod.score_records(rows, record_type="memory-update")
+    assert out["sample_count"] == 2
+    # min and max must not be swapped
+    assert out["min_latency_seconds"] == 600
+    assert out["max_latency_seconds"] == 1800
+
+
 def test_score_mixed_rows() -> None:
     rows = [
         _make_record("rec-a", decision="approve"),
