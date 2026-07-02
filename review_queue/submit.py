@@ -45,6 +45,14 @@ def submit(
         )
     if not candidate_path.exists():
         raise FileNotFoundError(f"candidate not found: {candidate_path}")
+    # diff reads the candidate as a file; a directory would raise IsADirectoryError
+    # (PermissionError on Windows) deep inside difflib, so reject it up front.
+    if not candidate_path.is_file():
+        raise FileNotFoundError(f"candidate is not a file: {candidate_path}")
+    if target_path_for_diff is not None and target_path_for_diff.exists() and not target_path_for_diff.is_file():
+        raise FileNotFoundError(
+            f"target-path-for-diff is not a file: {target_path_for_diff}"
+        )
 
     now_iso = now or _now_iso()
     today = now_iso[:10]

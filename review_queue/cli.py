@@ -253,12 +253,18 @@ def main(argv: list[str] | None = None) -> int:
             row["auto_promote_threshold"] = score_mod.AUTO_PROMOTE_THRESHOLD
             print(report_mod.format_run(row))
             return 0
-        row = ledger_mod.append_run(
-            ledger_path,
-            score_dict,
-            threshold=score_mod.AUTO_PROMOTE_THRESHOLD,
-            notes=args.note,
-        )
+        try:
+            # append_run reads the existing ledger to allocate the next run id,
+            # so a malformed ledger surfaces here as a ValueError.
+            row = ledger_mod.append_run(
+                ledger_path,
+                score_dict,
+                threshold=score_mod.AUTO_PROMOTE_THRESHOLD,
+                notes=args.note,
+            )
+        except ValueError as exc:
+            print(f"score failed: {exc}", file=sys.stderr)
+            return 2
         print(report_mod.format_run(row))
         return 0
 
@@ -268,7 +274,11 @@ def main(argv: list[str] | None = None) -> int:
             if args.ledger
             else repo_root / "data" / "ledger" / "runs.jsonl"
         )
-        rows = ledger_mod.read_runs(ledger_path)
+        try:
+            rows = ledger_mod.read_runs(ledger_path)
+        except ValueError as exc:
+            print(f"report failed: {exc}", file=sys.stderr)
+            return 2
         if args.record_type:
             rows = [r for r in rows if r.get("record_type") == args.record_type]
         print(report_mod.format_report(rows))
