@@ -27,6 +27,10 @@ the contract surface; downstream factory runs read them as input.
   `approve_unchanged_rate=1.0`, `median_latency_seconds=1576`,
   `auto_promote_eligible=false` (below DEC-RQ-001's twenty-row
   threshold).
+- Second scoring run is checked in at `data/ledger/runs.jsonl` line 2:
+  `record_type=skill`, `sample_count=1`, `edit_rate=1.0`,
+  `median_latency_seconds=2490`, `auto_promote_eligible=false`. It is
+  the first ledger row exercising the edit-verdict path.
 - First calibration row at `examples/rec-2026-08-14-001.md` is the
   source data for that scoring run; it validates against the schema
   and contributes one row to the `memory-update` row set.
@@ -59,7 +63,8 @@ the contract surface; downstream factory runs read them as input.
   state. Structured JSON-patch diffs are accepted but not generated.
 - `voice_lint` runs on `docs/` and `examples/` only; it does not yet
   scan the source tree.
-- No web UI. The CLI is the surface.
+- The Streamlit UI reads the committed queue records. The CLI remains
+  the authoritative write surface.
 - The ledger is append-only but unguarded against concurrent writers.
   The cadence (monthly or quarterly, one human at the keyboard) makes
   this acceptable for v0.1.
@@ -81,10 +86,9 @@ the contract surface; downstream factory runs read them as input.
   `report` flags rows that crossed the methodology's heuristic
   ceilings (30 minutes for `memory-update`, 2 hours for
   `contract-clause`).
-- Add a second calibration ledger row exercising the `edit` verdict
-  path (one record approved with an `edit_diff`, the original marked
-  `superseded`) and a corresponding scoring run row demonstrating a
-  non-1.0 approve-unchanged rate.
+- Add a third calibration ledger row exercising the `reject` verdict
+  path so report readers can see all three verdict classes before the
+  twenty-row threshold is reachable.
 - Land DEC-RQ-002 documenting the target-scheme decision and the
   conditions under which GitHub PR targets become safe to add.
 
