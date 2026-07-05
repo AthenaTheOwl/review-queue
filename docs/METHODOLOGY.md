@@ -124,3 +124,12 @@ The first scoring run against this row is checked in at
 twenty-row threshold, so the record_type is not eligible for
 auto-promote. The number is recorded anyway; that is the point of
 the ledger.
+
+The second checked-in run reads the first `skill` row,
+`decided/rec-2026-08-17-001.md`. Its first verdict is `edit`, because
+the reviewer accepted the candidate only after widening the banned-path
+list to cover Windows and ssh prefixes. `data/ledger/runs.jsonl` line
+2 records `record_type=skill`, `sample_count=1`, `edit_rate=1.0`, and
+`median_latency_seconds=2490`. That row is also below the twenty-row
+threshold, but it proves the ledger can record non-approve verdicts
+without treating them as failures.
