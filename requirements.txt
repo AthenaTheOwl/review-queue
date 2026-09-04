@@ -4,3 +4,7 @@
 # this repo installed (the `.` line). review_queue has no third-party deps.
 streamlit>=1.40
 .
+
+# required by scripts/validate_data_conformance.py (DEC: data-conformance gate)
+jsonschema
+pyyaml
