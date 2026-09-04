@@ -6,7 +6,10 @@ readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 authors = [{ name = "ReviewQueue contributors" }]
-dependencies = []
+dependencies = [
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+]
 
 [project.scripts]
 review-queue = "review_queue.cli:main"
