@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import difflib
-from pathlib import Path
 
 
 def unified_text_diff(
@@ -25,17 +24,3 @@ def unified_text_diff(
         n=3,
     )
     return "".join(diff)
-
-
-def diff_candidate_vs_target(candidate_path: Path, target_path: Path | None) -> str:
-    after = candidate_path.read_text(encoding="utf-8")
-    if target_path is None or not target_path.exists():
-        before = ""
-    else:
-        before = target_path.read_text(encoding="utf-8")
-    return unified_text_diff(
-        before,
-        after,
-        before_label=str(target_path) if target_path else "/dev/null",
-        after_label=str(candidate_path),
-    )
