@@ -66,6 +66,24 @@ def test_bad_id_format_fails() -> None:
         schema.validate(r)
 
 
+def test_candidate_digest_is_optional() -> None:
+    r = _valid_record()
+    assert "candidate_sha256" not in r
+    schema.validate(r)
+    r["candidate_sha256"] = "0" * 64
+    schema.validate(r)
+
+
+@pytest.mark.parametrize(
+    "digest", ["NOT-A-DIGEST", "F65A9BA6", "A" * 64, "0" * 63, "", None, 123]
+)
+def test_malformed_candidate_digest_fails(digest) -> None:
+    r = _valid_record()
+    r["candidate_sha256"] = digest
+    with pytest.raises(schema.SchemaError, match="candidate_sha256"):
+        schema.validate(r)
+
+
 def test_verdict_decision_validated() -> None:
     r = _valid_record()
     r["status"] = "approved"
