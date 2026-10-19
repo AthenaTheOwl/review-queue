@@ -1,6 +1,7 @@
 """submit: wrap a candidate in a typed promotion-record and land it in queue/."""
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -58,12 +59,22 @@ def submit(
     today = now_iso[:10]
     rid = record_id or _next_id(queue_dir, today)
 
-    diff_text = diff_mod.diff_candidate_vs_target(candidate_path, target_path_for_diff)
+    # The review diff and digest must describe the same single read of the payload.
+    candidate_bytes = candidate_path.read_bytes()
+    candidate_text = candidate_bytes.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    before = (target_path_for_diff.read_text(encoding="utf-8")
+              if target_path_for_diff is not None and target_path_for_diff.exists() else "")
+    diff_text = diff_mod.unified_text_diff(
+        before, candidate_text,
+        before_label=str(target_path_for_diff) if target_path_for_diff else "/dev/null",
+        after_label=str(candidate_path),
+    )
 
     fm = {
         "id": rid,
         "record_type": record_type,
         "candidate_ref": str(candidate_path.as_posix()),
+        "candidate_sha256": hashlib.sha256(candidate_bytes).hexdigest(),
         "provenance_ref": provenance_ref,
         "diff": diff_text,
         "status": "pending",

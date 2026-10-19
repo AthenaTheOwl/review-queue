@@ -201,6 +201,46 @@ def test_publish_writes_target_and_moves_record(repo: Path) -> None:
     assert "New memory" in (repo / "out.md").read_text(encoding="utf-8")
 
 
+def test_publish_blocks_candidate_changed_after_review(repo: Path) -> None:
+    rec = submit.submit(candidate_path=repo / "examples" / "candidate.md",
+                        provenance_ref="trace://test/run/changed", target="file://./out.md",
+                        record_type="test-case", queue_dir=repo / "queue")
+    decide.decide(record_id=rec.fm["id"], decision="approve", reviewer="reviewer",
+                  search_roots=[repo / "queue"])
+    (repo / "examples" / "candidate.md").write_text("Unreviewed replacement\n", encoding="utf-8")
+    with pytest.raises(publish.PublishError, match="changed since submission"):
+        publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                        decided_dir=repo / "decided", repo_root=repo)
+    assert not (repo / "out.md").exists()
+    assert records.load(rec.path).fm["status"] == "approved"
+
+
+def test_publish_requires_digest_on_legacy_approval(repo: Path) -> None:
+    rec = submit.submit(candidate_path=repo / "examples" / "candidate.md",
+                        provenance_ref="trace://test/run/legacy", target="file://./out.md",
+                        record_type="test-case", queue_dir=repo / "queue")
+    del rec.fm["candidate_sha256"]
+    records.save(rec)
+    decide.decide(record_id=rec.fm["id"], decision="approve", reviewer="reviewer",
+                  search_roots=[repo / "queue"])
+    with pytest.raises(publish.PublishError, match="resubmit"):
+        publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                        decided_dir=repo / "decided", repo_root=repo)
+
+
+def test_published_bytes_equal_the_submitted_bytes(repo: Path) -> None:
+    content = b"# Candidate\r\n\r\nExact bytes.\r\n"
+    candidate = repo / "examples" / "candidate.md"
+    candidate.write_bytes(content)
+    rec = submit.submit(candidate_path=candidate, provenance_ref="trace://test/run/bytes",
+                        target="file://./out.md", record_type="test-case", queue_dir=repo / "queue")
+    decide.decide(record_id=rec.fm["id"], decision="approve", reviewer="reviewer",
+                  search_roots=[repo / "queue"])
+    publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                    decided_dir=repo / "decided", repo_root=repo)
+    assert (repo / "out.md").read_bytes() == content
+
+
 def test_publish_refuses_repo_target(repo: Path) -> None:
     queue_dir = repo / "queue"
     decided_dir = repo / "decided"
