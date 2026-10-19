@@ -218,3 +218,48 @@ def test_checked_in_ledger_row_is_valid_json() -> None:
     assert first["sample_count"] == 1
     assert first["approve_unchanged_rate"] == 1.0
     assert "rec-2026-08-14-001" in first["records"]
+
+
+def test_lower_bound_by_hand() -> None:
+    bound = score_mod.approve_rate_lower_bound
+    # 19 of 20: the bound p solves P(X >= 19 | 20, p) = 20 p^19 (1 - p) + p^20 = 0.05
+    p = bound(19, 20)
+    assert p == pytest.approx(0.7839, abs=1e-4)
+    assert 20 * p**19 * (1 - p) + p**20 == pytest.approx(0.05, abs=1e-9)
+    # n of n: p^n = 0.05
+    assert bound(20, 20) == pytest.approx(0.05 ** (1 / 20)) == pytest.approx(0.8609, abs=1e-4)
+    assert bound(1, 3) == pytest.approx(1 - 0.95 ** (1 / 3))  # P(X >= 1) = 1 - (1 - p)^3
+    assert bound(0, 20) == 0.0
+    assert bound(0, 0) is None
+    # 59 straight approvals is the smallest all-approve set whose bound clears 0.95
+    assert bound(58, 58) < 0.95 < bound(59, 59)
+    with pytest.raises(ValueError):
+        bound(21, 20)
+
+
+def test_score_prints_n_and_lower_bound_beside_the_rate() -> None:
+    rows = [_make_record(f"rec-{i:02d}") for i in range(19)] + [_make_record("rec-19", decision="reject")]
+    out = score_mod.score_records(rows, record_type="memory-update")
+    assert out["sample_count"] == 20 and out["approve_unchanged_rate"] == 0.95
+    assert score_mod.is_auto_promote_eligible(out)  # the DEC-RQ-001 threshold itself is unchanged
+    text = report_mod.format_run(dict(out, auto_promote_eligible=True,
+                                      auto_promote_threshold=score_mod.AUTO_PROMOTE_THRESHOLD))
+    (line,) = [ln for ln in text.splitlines() if ln.startswith("approve_unchanged_rate:")]
+    assert "95.0%" in line
+    assert "(19 of 20; one-sided 95% lower bound 78.4%, exact Clopper-Pearson)" in line
+
+
+def test_report_bound_reads_old_ledger_rows_and_empty_runs() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    first = ledger_mod.read_runs(repo_root / "data" / "ledger" / "runs.jsonl")[0]
+    assert "(1 of 1; one-sided 95% lower bound 5.0%" in report_mod.format_run(first)
+    assert "(0 rows; no bound)" in report_mod.format_run(score_mod.score_records([]))
+
+
+def test_cli_score_dry_run_prints_the_bound(capsys: pytest.CaptureFixture) -> None:
+    from review_queue import cli
+
+    repo_root = Path(__file__).resolve().parents[1]
+    assert cli.main(["--repo-root", str(repo_root), "score", "--dry-run"]) == 0
+    out = capsys.readouterr().out
+    assert "sample_count:" in out and "one-sided 95% lower bound" in out

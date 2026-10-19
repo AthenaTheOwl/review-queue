@@ -45,6 +45,10 @@ python -m review_queue score --dry-run                 # calibration metrics ove
 python -m review_queue report                          # read the calibration ledger
 ```
 
+`score` prints the approve-unchanged rate with its sample size and a one-sided 95%
+lower confidence bound (exact Clopper-Pearson). 19 of 20 meets the DEC-RQ-001 bar,
+yet its lower bound is about 0.784; see `docs/METHODOLOGY.md`.
+
 ## Publishing
 
 New submissions pin `candidate_sha256` from the same bytes used to build their

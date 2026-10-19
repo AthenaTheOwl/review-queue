@@ -12,6 +12,7 @@ display.
 """
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
 from statistics import median
 from typing import Any, Iterable
@@ -134,3 +135,51 @@ def is_auto_promote_eligible(score_dict: dict[str, Any]) -> bool:
         and score_dict.get("approve_unchanged_rate", 0.0)
         >= AUTO_PROMOTE_THRESHOLD["min_approve_unchanged_rate"]
     )
+
+
+def _binomial_upper_tail(successes: int, n: int, p: float) -> float:
+    """P(X >= successes) for X ~ Binomial(n, p), 0 < p < 1, summed in log space."""
+    log_p, log_q = math.log(p), math.log1p(-p)
+    lg_n = math.lgamma(n + 1)
+    return sum(
+        math.exp(lg_n - math.lgamma(k + 1) - math.lgamma(n - k + 1) + k * log_p + (n - k) * log_q)
+        for k in range(successes, n + 1)
+    )
+
+
+def approve_rate_lower_bound(approvals: int, n: int, confidence: float = 0.95) -> float | None:
+    """One-sided exact (Clopper-Pearson) lower confidence bound on a rate.
+
+    The bound is the smallest true rate p at which seeing `approvals` or
+    more approvals in `n` rows still has probability at least
+    1 - `confidence`. 19 of 20 gives about 0.784; 20 of 20 gives
+    0.05 ** (1 / 20), about 0.861. Returns None when n is 0.
+    """
+    if n <= 0:
+        return None
+    if not 0 <= approvals <= n:
+        raise ValueError(f"approvals must be between 0 and n, got {approvals} of {n}")
+    alpha = 1.0 - confidence
+    if approvals == 0:
+        return 0.0
+    if approvals == n:
+        return alpha ** (1.0 / n)
+    lo, hi = 0.0, 1.0
+    for _ in range(100):  # the upper tail rises with p; bisect for tail == alpha
+        mid = (lo + hi) / 2
+        if _binomial_upper_tail(approvals, n, mid) < alpha:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+def approve_unchanged_bound(score_dict: dict[str, Any], confidence: float = 0.95) -> tuple[int, int, float | None]:
+    """(approvals, n, lower bound) for a score or ledger row.
+
+    Approvals are recovered from `approve_unchanged_rate` * `sample_count`,
+    so ledger rows written before the bound existed can be read the same way.
+    """
+    n = int(score_dict.get("sample_count") or 0)
+    approvals = int(round((score_dict.get("approve_unchanged_rate") or 0.0) * n))
+    return approvals, n, approve_rate_lower_bound(approvals, n, confidence)
