@@ -65,7 +65,10 @@ changing it after the verdict stops publication, as it does for a plain approval
 Historical records remain readable. Publishing an old approval without a digest
 requires resubmission and a fresh review; the tool does not invent an old digest.
 An edit verdict recorded without `approved_sha256` is refused the same way rather
-than shipping the pre-edit bytes.
+than shipping the pre-edit bytes. On such a record (no `candidate_sha256`, like
+`queue/rec-2026-08-18-001.md`), `decide --verdict edit` has no pinned bytes to apply
+the edit to: it stores `--edit-diff` as text without checking it and adds no
+`approved_sha256`, and `publish` refuses the record until the candidate is resubmitted.
 The digest binds a candidate to its recorded review input. It does not authenticate
 the reviewer, verify a provenance URI, or replace access controls on queue files.
 

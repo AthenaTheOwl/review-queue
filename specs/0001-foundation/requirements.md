@@ -41,8 +41,10 @@ and gate.
   unified diff that must apply cleanly to the submitted candidate,
   the record keeps the submitted bytes' `candidate_sha256` and adds
   the edited bytes' `approved_sha256`, and `publish` writes the edited
-  bytes. Splitting the edited candidate into its own record and
-  marking the original `superseded` is not wired yet.
+  bytes. A legacy record without `candidate_sha256` keeps the
+  edit_diff as unchecked text and cannot be published until the
+  candidate is resubmitted. Splitting the edited candidate into its
+  own record and marking the original `superseded` is not wired yet.
 
 ## Targets
 

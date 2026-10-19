@@ -60,7 +60,10 @@ A record with an empty or non-URI provenance ref is refused at step 4
 5. For `edit`, the candidate is read once and checked against
    `candidate_sha256`, the edit diff is applied to it, and the edited
    bytes' digest is recorded as `approved_sha256`. An edit diff that
-   does not apply exits non-zero with the record unchanged.
+   does not apply exits non-zero with the record unchanged. A legacy
+   record without `candidate_sha256` skips this step: the edit diff is
+   stored as text, no `approved_sha256` is written, and publish refuses
+   the record until the candidate is resubmitted.
 6. A verdict entry is appended; the record is saved.
 
 The state-machine check runs again after the mutation
