@@ -19,7 +19,7 @@ review_queue/
   list_cmd.py        # list command logic
   decide.py          # decide command logic
   publish.py         # publish command logic
-  diff.py            # unified-text-diff helper
+  diff.py            # unified diff builder and strict applier for edit verdicts
 ```
 
 The package is editable-installed by uv (via `[tool.uv] package = true`
