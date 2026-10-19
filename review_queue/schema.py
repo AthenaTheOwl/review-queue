@@ -34,6 +34,7 @@ REQUIRED_FIELDS = (
 ID_RE = re.compile(r"^rec-\d{4}-\d{2}-\d{2}-\d{3,}$")
 PROVENANCE_RE = re.compile(r"^[a-z][a-z0-9+.\-]*://")
 TARGET_RE = re.compile(r"^(file|repo)://")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 ISO_RE = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+\-]\d{2}:?\d{2})$"
 )
@@ -60,6 +61,18 @@ def validate(record: dict[str, Any]) -> None:
     cref = record["candidate_ref"]
     if not isinstance(cref, str) or not cref:
         raise SchemaError("candidate_ref must be a non-empty string")
+
+    # Optional so historical records stay readable; when present it must be a digest.
+    for field in ("candidate_sha256", "approved_sha256"):
+        if field in record:
+            digest = record[field]
+            if not isinstance(digest, str) or not SHA256_RE.match(digest):
+                raise SchemaError(
+                    f"{field} must be 64 lowercase hex characters: {digest!r}"
+                )
+    # The edited digest never replaces the submitted one; both stay on file.
+    if "approved_sha256" in record and "candidate_sha256" not in record:
+        raise SchemaError("approved_sha256 requires candidate_sha256")
 
     pref = record["provenance_ref"]
     if not isinstance(pref, str) or not pref.strip():

@@ -10,24 +10,6 @@ The record is the point. A `candidate` is whatever the upstream agent wrote. A `
 
 ## Try it
 
-New submissions pin `candidate_sha256` from the same bytes used to build their
-review diff. File publishing checks that digest and writes those exact bytes. If
-the candidate changes after submission, publication stops and the record stays
-approved; submit a fresh candidate and obtain a new review. This includes edits
-made after an `edit` verdict: the verdict text does not apply a patch to the payload.
-
-Historical records remain readable. Publishing an old approval without a digest
-requires resubmission and a fresh review; the tool does not invent an old digest.
-The digest binds a candidate to its recorded review input. It does not authenticate
-the reviewer, verify a provenance URI, or replace access controls on queue files.
-
-For an AIP handoff, submit a local proposal with its source/run evidence reference.
-Let the reviewer inspect the diff and raw receipts before the author's conclusion.
-Approve the concrete candidate, then use the queue's local file publication step.
-An AgentsX post or other external action needs its own explicit authorization;
-this CLI has no network publishing adapter. The version-applicability principle
-comes from [AI Product Team's change workflow](https://github.com/3orionkings/ai-product-team/blob/main/workflows/process-change.md).
-
 No args, no setup. It reads the committed records and prints the queue, rows awaiting a verdict first:
 
 ```
@@ -62,6 +44,46 @@ python -m review_queue publish --record-id <id>        # ship an approved record
 python -m review_queue score --dry-run                 # calibration metrics over the queue
 python -m review_queue report                          # read the calibration ledger
 ```
+
+`--reviewer` is a self-asserted label, not an authenticated identity: the CLI
+records the name it is given and does not check who typed it. It trims surrounding
+whitespace and accepts 1-64 characters, a letter, digit or underscore first, then
+letters, digits or `. _ @ + -` (for example `vignesh` or `jane.doe@example.com`);
+a blank value or one with spaces or line breaks is refused.
+
+`score` prints the approve-unchanged rate with its sample size and a one-sided 95%
+lower confidence bound (exact Clopper-Pearson). 19 of 20 meets the DEC-RQ-001 bar,
+yet its lower bound is about 0.784; see `docs/METHODOLOGY.md`.
+
+## Publishing
+
+New submissions pin `candidate_sha256` from the same bytes used to build their
+review diff. File publishing reads the candidate once, checks that digest, and
+writes the approved bytes. If the candidate changes after submission, publication
+stops and the record stays approved; submit a fresh candidate and obtain a new review.
+
+An `edit` verdict approves the edited candidate. `decide --verdict edit` applies
+`--edit-diff`, a unified diff made against the submitted candidate file (for example
+`diff -u candidate.md edited.md` or `git diff --no-index`), and refuses one that does
+not apply cleanly. Build the edit from the file, not from the review diff in the
+record body. The record keeps `candidate_sha256` for the submitted bytes and
+adds `approved_sha256` for the edited bytes (UTF-8, LF line endings). `publish`
+re-applies the edit to the verified candidate, checks the result against
+`approved_sha256`, and writes those bytes. Leave the source file as submitted:
+changing it after the verdict stops publication, as it does for a plain approval.
+
+Historical records remain readable. Publishing an old approval without a digest
+requires resubmission and a fresh review; the tool does not invent an old digest.
+An edit verdict recorded without `approved_sha256` is refused the same way rather
+than shipping the pre-edit bytes. On such a record (no `candidate_sha256`, like
+`queue/rec-2026-08-18-001.md`), `decide --verdict edit` has no pinned bytes to apply
+the edit to: it stores `--edit-diff` as text without checking it and adds no
+`approved_sha256`, and `publish` refuses the record until the candidate is resubmitted.
+The digest binds a candidate to its recorded review input. It does not authenticate
+the reviewer, verify a provenance URI, or replace access controls on queue files.
+
+Publishing writes local files only; this CLI has no network publishing adapter.
+A post or other external action needs its own explicit authorization.
 
 ## Live demo
 

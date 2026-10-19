@@ -32,6 +32,18 @@ Per record_type, we compute four quantities over the row set:
    DEC-RQ-001 names the threshold for auto-promote eligibility at 95%
    over at least twenty rows.
 
+   `score` and `report` print the rate with its sample size and a
+   one-sided 95% lower confidence bound (exact Clopper-Pearson), for
+   example `95.0%  (19 of 20; one-sided 95% lower bound 78.4%, exact
+   Clopper-Pearson)`. The bound is the lowest true rate the row set
+   cannot rule out at 95% confidence. Twenty rows are a small sample:
+   19 of 20, which meets the DEC-RQ-001 bar, has a lower bound of about
+   0.784, and 20 of 20 has about 0.861. Showing a true rate of at least
+   95% at 95% confidence with no misses takes 59 rows. The DEC-RQ-001
+   threshold is unchanged and still reads the observed rate; the bound
+   is printed beside it so the reader of a scoring run sees how much
+   the rate is worth.
+
 2. **Edit rate.** Share of rows whose first verdict is `edit`. A high
    edit rate means the upstream agent is producing candidates that are
    close-but-not-right; the agent's prompt or grounding needs work.
@@ -61,7 +73,9 @@ behavior on the verdicts list.
 
 - A row produced by a reviewer reviewing their own candidate. The
   v0 CLI does not enforce this (no reviewer-identity registry yet),
-  but the methodology says drop it.
+  but the methodology says drop it. The `reviewer` field is a
+  self-asserted label that `decide` checks only for format (trimmed,
+  1-64 characters, no spaces); it is not an authenticated identity.
 - A row whose `provenance_ref` does not start with a known URI scheme
   (`trace://`, `evidence://`, `cdcp://`). The schema only enforces
   URI-shape; the methodology is stricter about which schemes count.

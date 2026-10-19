@@ -19,7 +19,7 @@ review_queue/
   list_cmd.py        # list command logic
   decide.py          # decide command logic
   publish.py         # publish command logic
-  diff.py            # unified-text-diff helper
+  diff.py            # unified diff builder and strict applier for edit verdicts
 ```
 
 The package is editable-installed by uv (via `[tool.uv] package = true`
@@ -57,7 +57,14 @@ A record with an empty or non-URI provenance ref is refused at step 4
    `approved`, `reject` -> `rejected`).
 4. `state.assert_transition` confirms the current -> target hop is
    allowed; an illegal hop exits non-zero with the record unchanged.
-5. A verdict entry is appended; the record is saved.
+5. For `edit`, the candidate is read once and checked against
+   `candidate_sha256`, the edit diff is applied to it, and the edited
+   bytes' digest is recorded as `approved_sha256`. An edit diff that
+   does not apply exits non-zero with the record unchanged. A legacy
+   record without `candidate_sha256` skips this step: the edit diff is
+   stored as text, no `approved_sha256` is written, and publish refuses
+   the record until the candidate is resubmitted.
+6. A verdict entry is appended; the record is saved.
 
 The state-machine check runs again after the mutation
 (`state.consistency_check`) so a save cannot leave the record in a
@@ -70,8 +77,11 @@ verdicts/status mismatch.
    `approved`.
 3. `file://` targets resolve to an absolute path (relative paths are
    resolved against the repo root).
-4. The candidate body is read from `candidate_ref` and written to the
-   target path.
+4. The candidate is read once from `candidate_ref` and checked against
+   `candidate_sha256`. For an `edit` verdict the edit diff is applied
+   again and the result checked against `approved_sha256`. Those
+   approved bytes are written to the target path; a digest mismatch
+   exits non-zero with nothing written.
 5. The record's status flips to `published`; the record file moves
    from `queue/<id>.md` to `decided/<id>.md`.
 

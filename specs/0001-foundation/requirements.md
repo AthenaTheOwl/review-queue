@@ -33,10 +33,21 @@ and gate.
 
 - **R-RQ-006** A verdict has fields `reviewer`, `decided_at`,
   `decision`, and optional `edit_diff`. `decision` is one of
-  `approve`, `reject`, `edit`.
+  `approve`, `reject`, `edit`. `reviewer` is a self-asserted label,
+  not an authenticated identity; `decide` trims it and requires 1-64
+  characters, a letter, digit or underscore first, then letters,
+  digits or `. _ @ + -`.
 - **R-RQ-007** An `edit` decision attaches an `edit_diff` and is
   treated as an implicit `approve` against the edited candidate. The
   original candidate is marked `superseded`.
+  v0 meets the approve half on the same record: the `edit_diff` is a
+  unified diff that must apply cleanly to the submitted candidate,
+  the record keeps the submitted bytes' `candidate_sha256` and adds
+  the edited bytes' `approved_sha256`, and `publish` writes the edited
+  bytes. A legacy record without `candidate_sha256` keeps the
+  edit_diff as unchecked text and cannot be published until the
+  candidate is resubmitted. Splitting the edited candidate into its
+  own record and marking the original `superseded` is not wired yet.
 
 ## Targets
 

@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
+from review_queue.score import approve_unchanged_bound
+
 
 def _fmt_pct(x: float | None) -> str:
     if x is None:
@@ -20,6 +22,14 @@ def _fmt_secs(x: int | None) -> str:
     return f"{x:>6d}s"
 
 
+def _fmt_bound(row: dict[str, Any]) -> str:
+    """n and the one-sided 95% exact lower bound, printed beside the rate."""
+    approvals, n, lower = approve_unchanged_bound(row)
+    if lower is None:
+        return "(0 rows; no bound)"
+    return f"({approvals} of {n}; one-sided 95% lower bound {100.0 * lower:.1f}%, exact Clopper-Pearson)"
+
+
 def format_run(row: dict[str, Any]) -> str:
     """Format a single ledger row as a multi-line report block."""
     rtype = row.get("record_type") or "<all>"
@@ -28,7 +38,7 @@ def format_run(row: dict[str, Any]) -> str:
         f"scored_at:               {row.get('scored_at', '?')}",
         f"record_type:             {rtype}",
         f"sample_count:            {row.get('sample_count', 0)}",
-        f"approve_unchanged_rate:  {_fmt_pct(row.get('approve_unchanged_rate'))}",
+        f"approve_unchanged_rate:  {_fmt_pct(row.get('approve_unchanged_rate'))}  {_fmt_bound(row)}",
         f"edit_rate:               {_fmt_pct(row.get('edit_rate'))}",
         f"reject_rate:             {_fmt_pct(row.get('reject_rate'))}",
         f"median_latency:          {_fmt_secs(row.get('median_latency_seconds'))}",

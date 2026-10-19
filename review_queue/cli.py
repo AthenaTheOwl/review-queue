@@ -83,8 +83,16 @@ def build_parser() -> argparse.ArgumentParser:
     d = sub.add_parser("decide", help="Record a verdict on a queued record.")
     d.add_argument("--record-id", required=True)
     d.add_argument("--verdict", required=True, choices=["approve", "reject", "edit"])
-    d.add_argument("--reviewer", required=True)
-    d.add_argument("--edit-diff", default=None)
+    d.add_argument(
+        "--reviewer",
+        required=True,
+        help="Name to record on the verdict: 1-64 characters, a letter, digit or underscore first, then letters, digits or . _ @ + - (surrounding whitespace is trimmed). A self-asserted label, not an authenticated identity.",
+    )
+    d.add_argument(
+        "--edit-diff",
+        default=None,
+        help="Unified diff against the submitted candidate file (e.g. diff -u candidate edited). Required with --verdict edit; it must apply cleanly when the record has candidate_sha256 (legacy records keep it as unchecked text and cannot be published).",
+    )
     d.add_argument("--note", default=None)
 
     pub = sub.add_parser("publish", help="Ship an approved record to its target.")
@@ -215,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
                 edit_diff=args.edit_diff,
                 note=args.note,
                 search_roots=roots,
+                repo_root=repo_root,
             )
         except (ValueError, FileNotFoundError) as exc:
             print(f"decide failed: {exc}", file=sys.stderr)

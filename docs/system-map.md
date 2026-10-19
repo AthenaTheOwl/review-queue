@@ -16,7 +16,7 @@ review-queue/
     frontmatter.py       narrow-YAML parser; the schema is the moat
     schema.py            in-code validator mirroring schemas/*.json
     state.py             state machine + consistency check
-    diff.py              difflib-based unified diff helper
+    diff.py              unified diff builder and strict applier for edit verdicts
   schemas/               JSON Schema draft 2020-12
     promotion-record.schema.json
     candidate.schema.json

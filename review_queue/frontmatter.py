@@ -17,6 +17,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+# Characters str.splitlines treats as line breaks besides LF. A raw one in a
+# scalar would split the record line when it is read back, so they are escaped.
+_OTHER_LINE_BREAKS = "\r\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029"
+
 FRONTMATTER_RE = re.compile(
     r"\A---\s*\n(?P<fm>.*?)\n---\s*\n(?P<body>.*)\Z",
     re.DOTALL,
@@ -39,6 +43,14 @@ def _unescape(s: str) -> str:
                 out.append("\t")
                 i += 2
                 continue
+            if nxt == "r":
+                out.append("\r")
+                i += 2
+                continue
+            if nxt == "u" and re.fullmatch(r"[0-9a-fA-F]{4}", s[i + 2:i + 6]):
+                out.append(chr(int(s[i + 2:i + 6], 16)))
+                i += 6
+                continue
             if nxt == '"':
                 out.append('"')
                 i += 2
@@ -54,12 +66,16 @@ def _unescape(s: str) -> str:
 
 def _escape(s: str) -> str:
     """Escape a string so it stays a single physical line inside double quotes."""
-    return (
+    s = (
         s.replace("\\", "\\\\")
         .replace('"', '\\"')
         .replace("\n", "\\n")
         .replace("\t", "\\t")
+        .replace("\r", "\\r")
     )
+    for ch in _OTHER_LINE_BREAKS[1:]:
+        s = s.replace(ch, f"\\u{ord(ch):04x}")
+    return s
 
 
 def split(text: str) -> tuple[str, str]:
@@ -205,7 +221,7 @@ def _dump_scalar(v: Any) -> str:
     needs_quote = any(
         ch in s
         for ch in (":", "#", "[", "]", "{", "}", "&", "*", "!", "|", ">", "%", "@", "`", "\n", "\t", "\\", '"')
-    )
+    ) or any(ch in s for ch in _OTHER_LINE_BREAKS)
     if needs_quote:
         return '"' + _escape(s) + '"'
     return s

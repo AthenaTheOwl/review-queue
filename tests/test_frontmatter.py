@@ -78,3 +78,12 @@ def test_wrap_renders_record_file() -> None:
     assert out.startswith("---\n")
     assert "id: rec-2026-08-14-001" in out
     assert out.endswith("hello\n")
+
+
+@pytest.mark.parametrize("ch", ["\r", "\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", " ", " "])
+def test_line_break_characters_round_trip_on_one_line(ch: str) -> None:
+    # str.splitlines breaks on all of these; an unescaped one would split the record line.
+    value = f"@@ -1 +1 @@\n-a{ch}\n+b{ch}\\u0041"
+    rendered = frontmatter.dumps({"id": "rec-1", "verdicts": [{"edit_diff": value}]})
+    assert len(rendered.splitlines()) == 3
+    assert frontmatter.loads(rendered)["verdicts"][0]["edit_diff"] == value

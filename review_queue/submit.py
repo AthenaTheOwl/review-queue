@@ -61,7 +61,7 @@ def submit(
 
     # The review diff and digest must describe the same single read of the payload.
     candidate_bytes = candidate_path.read_bytes()
-    candidate_text = candidate_bytes.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+    candidate_text = diff_mod.review_text(candidate_bytes)
     before = (target_path_for_diff.read_text(encoding="utf-8")
               if target_path_for_diff is not None and target_path_for_diff.exists() else "")
     diff_text = diff_mod.unified_text_diff(

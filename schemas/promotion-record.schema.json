@@ -42,6 +42,11 @@
       "pattern": "^[0-9a-f]{64}$",
       "description": "SHA-256 of the exact submitted candidate bytes. Required by file publishing; optional here so historical records remain readable."
     },
+    "approved_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the edited candidate bytes an edit verdict approved. Set by decide on an edit verdict and required to publish one; candidate_sha256 keeps the submitted bytes' digest for provenance. Optional so plain approvals and historical records remain readable."
+    },
     "provenance_ref": {
       "type": "string",
       "minLength": 1,
@@ -78,6 +83,9 @@
       "default": []
     }
   },
+  "dependentRequired": {
+    "approved_sha256": ["candidate_sha256"]
+  },
   "$defs": {
     "verdict": {
       "type": "object",
@@ -91,7 +99,7 @@
         },
         "edit_diff": {
           "type": "string",
-          "description": "Required when decision is edit. The diff between the original candidate and the reviewer's edited candidate."
+          "description": "Required when decision is edit. The unified diff between the original candidate and the reviewer's edited candidate; decide refuses one that does not apply cleanly to the submitted candidate."
         },
         "note": {
           "type": "string",
