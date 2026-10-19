@@ -59,9 +59,10 @@ def apply_unified_diff(before: str, patch: str) -> str:
     src = _split_lines(before)
     patch = patch.replace("\r\n", "\n")
     # Only a marker says "no newline"; a patch that lost its final newline
-    # (shell command substitution strips it) still means a complete line.
+    # (shell command substitution strips it) still means a complete line,
+    # including a CRLF patch whose last line kept only its "\r".
     if not patch.endswith("\n"):
-        patch += "\n"
+        patch = patch.removesuffix("\r") + "\n"
     lines = _split_lines(patch)
     out: list[str] = []
     pos = 0

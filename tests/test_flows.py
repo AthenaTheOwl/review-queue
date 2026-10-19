@@ -366,6 +366,27 @@ def test_legacy_edit_without_digests_is_recorded_but_not_published(repo: Path) -
     assert not (repo / "out.md").exists()
 
 
+@pytest.mark.parametrize("strip_final_newline", [False, True])
+def test_crlf_candidate_edit_survives_save_and_publishes(repo: Path, strip_final_newline: bool) -> None:
+    # `diff -u` on a CRLF candidate yields a CRLF edit diff; the record must stay readable.
+    # `--edit-diff "$(cat e.diff)"` strips the final "\n" and leaves the last "\r".
+    candidate = repo / "examples" / "crlf.md"
+    candidate.write_bytes(b"alpha\r\nbeta\r\n")
+    crlf_diff = "--- crlf.md\r\n+++ edited.md\r\n@@ -1,2 +1,2 @@\r\n alpha\r\n-beta\r\n+BETA\r\n"
+    if strip_final_newline:
+        crlf_diff = crlf_diff.removesuffix("\n")
+    rec = submit.submit(candidate_path=candidate, provenance_ref="trace://test/run/crlf",
+                        target="file://./out.md", record_type="test-case", queue_dir=repo / "queue")
+    decide.decide(record_id=rec.fm["id"], decision="edit", reviewer="reviewer",
+                  edit_diff=crlf_diff, search_roots=[repo / "queue"])
+    reloaded = records.load(rec.path)
+    assert reloaded.fm["verdicts"][0]["edit_diff"] == crlf_diff
+    assert [r.fm["id"] for r in records.iter_records([repo / "queue"])] == [rec.fm["id"]]
+    publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                    decided_dir=repo / "decided", repo_root=repo)
+    assert (repo / "out.md").read_bytes() == b"alpha\nBETA\n"
+
+
 def test_publish_refuses_repo_target(repo: Path) -> None:
     queue_dir = repo / "queue"
     decided_dir = repo / "decided"
