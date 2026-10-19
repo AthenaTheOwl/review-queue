@@ -219,13 +219,15 @@ def test_publish_requires_digest_on_legacy_approval(repo: Path) -> None:
     rec = submit.submit(candidate_path=repo / "examples" / "candidate.md",
                         provenance_ref="trace://test/run/legacy", target="file://./out.md",
                         record_type="test-case", queue_dir=repo / "queue")
-    del rec.fm["candidate_sha256"]
+    rec.fm.pop("candidate_sha256", None)
     records.save(rec)
     decide.decide(record_id=rec.fm["id"], decision="approve", reviewer="reviewer",
                   search_roots=[repo / "queue"])
-    with pytest.raises(publish.PublishError, match="resubmit"):
+    with pytest.raises(publish.PublishError, match="digest missing"):
         publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
                         decided_dir=repo / "decided", repo_root=repo)
+    assert not (repo / "out.md").exists()
+    assert records.load(rec.path).fm["status"] == "approved"
 
 
 def test_published_bytes_equal_the_submitted_bytes(repo: Path) -> None:
