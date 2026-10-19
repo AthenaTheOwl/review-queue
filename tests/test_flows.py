@@ -387,6 +387,35 @@ def test_crlf_candidate_edit_survives_save_and_publishes(repo: Path, strip_final
     assert (repo / "out.md").read_bytes() == b"alpha\nBETA\n"
 
 
+def test_publish_refuses_an_edit_diff_that_no_longer_applies(repo: Path) -> None:
+    rec = submit.submit(candidate_path=repo / "examples" / "candidate.md",
+                        provenance_ref="trace://test/run/edit-broken", target="file://./out.md",
+                        record_type="test-case", queue_dir=repo / "queue")
+    decide.decide(record_id=rec.fm["id"], decision="edit", reviewer="reviewer",
+                  edit_diff=EDIT_DIFF, search_roots=[repo / "queue"])
+    rec = records.load(rec.path)
+    rec.fm["verdicts"][-1]["edit_diff"] = "@@ -1 +1 @@\n-Not the first line\n+Replacement\n"
+    records.save(rec)
+    with pytest.raises(publish.PublishError, match="edit no longer applies"):
+        publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                        decided_dir=repo / "decided", repo_root=repo)
+    assert not (repo / "out.md").exists()
+    assert records.load(rec.path).fm["status"] == "approved"
+
+
+def test_decide_edit_refuses_a_missing_candidate(repo: Path) -> None:
+    rec = submit.submit(candidate_path=repo / "examples" / "candidate.md",
+                        provenance_ref="trace://test/run/edit-gone", target="file://./out.md",
+                        record_type="test-case", queue_dir=repo / "queue")
+    (repo / "examples" / "candidate.md").unlink()
+    with pytest.raises(FileNotFoundError, match="candidate file missing"):
+        decide.decide(record_id=rec.fm["id"], decision="edit", reviewer="reviewer",
+                      edit_diff=EDIT_DIFF, search_roots=[repo / "queue"])
+    reloaded = records.load(rec.path)
+    assert reloaded.fm["status"] == "pending"
+    assert reloaded.fm["verdicts"] == []
+
+
 def test_publish_refuses_repo_target(repo: Path) -> None:
     queue_dir = repo / "queue"
     decided_dir = repo / "decided"

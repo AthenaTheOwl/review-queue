@@ -57,3 +57,7 @@ def test_edit_applies_to_the_newline_normalised_review_text() -> None:
 def test_refuses_a_diff_that_does_not_apply_cleanly(patch: str, message: str) -> None:
     with pytest.raises(diff.PatchError, match=message):
         diff.apply_unified_diff(BEFORE, patch)
+
+
+def test_an_empty_context_line_without_its_leading_space_still_matches() -> None:
+    assert diff.apply_unified_diff("a\n\nb\n", "@@ -1,3 +1,3 @@\n a\n\n-b\n+B\n") == "a\n\nB\n"
