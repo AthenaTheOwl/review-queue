@@ -21,12 +21,8 @@ requires resubmission and a fresh review; the tool does not invent an old digest
 The digest binds a candidate to its recorded review input. It does not authenticate
 the reviewer, verify a provenance URI, or replace access controls on queue files.
 
-For an AIP handoff, submit a local proposal with its source/run evidence reference.
-Let the reviewer inspect the diff and raw receipts before the author's conclusion.
-Approve the concrete candidate, then use the queue's local file publication step.
-An AgentsX post or other external action needs its own explicit authorization;
-this CLI has no network publishing adapter. The version-applicability principle
-comes from [AI Product Team's change workflow](https://github.com/3orionkings/ai-product-team/blob/main/workflows/process-change.md).
+Publishing writes local files only; this CLI has no network publishing adapter.
+A post or other external action needs its own explicit authorization.
 
 No args, no setup. It reads the committed records and prints the queue, rows awaiting a verdict first:
 
