@@ -20,10 +20,14 @@ R-RQ-010 still hold; this spec adds R-RQ-011 through R-RQ-020.
   does not mutate the record on disk.
 - **R-RQ-015** `decide --verdict edit` requires `--edit-diff`; the
   record's status flips to `approved` and the verdict carries the
-  edit_diff field.
+  edit_diff field. The edit_diff must apply cleanly to the submitted
+  candidate, and the record gains `approved_sha256`, the digest of the
+  edited bytes (R-RQ-007).
 - **R-RQ-016** `publish` is implemented end-to-end for `file://`
   targets. `repo://` targets parse but exit with a stub message. The
-  record moves from `queue/` to `decided/` on success.
+  record moves from `queue/` to `decided/` on success. It writes the
+  approved bytes: the submitted candidate for an `approve`, the edited
+  candidate for an `edit`, each checked against its recorded digest.
 
 ## Calibration
 

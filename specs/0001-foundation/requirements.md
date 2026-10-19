@@ -37,6 +37,12 @@ and gate.
 - **R-RQ-007** An `edit` decision attaches an `edit_diff` and is
   treated as an implicit `approve` against the edited candidate. The
   original candidate is marked `superseded`.
+  v0 meets the approve half on the same record: the `edit_diff` is a
+  unified diff that must apply cleanly to the submitted candidate,
+  the record keeps the submitted bytes' `candidate_sha256` and adds
+  the edited bytes' `approved_sha256`, and `publish` writes the edited
+  bytes. Splitting the edited candidate into its own record and
+  marking the original `superseded` is not wired yet.
 
 ## Targets
 

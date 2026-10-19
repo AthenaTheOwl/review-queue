@@ -48,13 +48,22 @@ python -m review_queue report                          # read the calibration le
 ## Publishing
 
 New submissions pin `candidate_sha256` from the same bytes used to build their
-review diff. File publishing checks that digest and writes those exact bytes. If
-the candidate changes after submission, publication stops and the record stays
-approved; submit a fresh candidate and obtain a new review. This includes edits
-made after an `edit` verdict: the verdict text does not apply a patch to the payload.
+review diff. File publishing reads the candidate once, checks that digest, and
+writes the approved bytes. If the candidate changes after submission, publication
+stops and the record stays approved; submit a fresh candidate and obtain a new review.
+
+An `edit` verdict approves the edited candidate. `decide --verdict edit` applies
+`--edit-diff`, a unified diff against the reviewed text, and refuses one that does
+not apply cleanly. The record keeps `candidate_sha256` for the submitted bytes and
+adds `approved_sha256` for the edited bytes (UTF-8, LF line endings). `publish`
+re-applies the edit to the verified candidate, checks the result against
+`approved_sha256`, and writes those bytes. Leave the source file as submitted:
+changing it after the verdict stops publication, as it does for a plain approval.
 
 Historical records remain readable. Publishing an old approval without a digest
 requires resubmission and a fresh review; the tool does not invent an old digest.
+An edit verdict recorded without `approved_sha256` is refused the same way rather
+than shipping the pre-edit bytes.
 The digest binds a candidate to its recorded review input. It does not authenticate
 the reviewer, verify a provenance URI, or replace access controls on queue files.
 
