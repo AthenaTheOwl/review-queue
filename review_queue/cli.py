@@ -87,7 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument(
         "--edit-diff",
         default=None,
-        help="Unified diff against the submitted candidate. Required with --verdict edit; it must apply cleanly.",
+        help="Unified diff against the submitted candidate file (e.g. diff -u candidate edited). Required with --verdict edit; it must apply cleanly.",
     )
     d.add_argument("--note", default=None)
 

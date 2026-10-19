@@ -53,8 +53,10 @@ writes the approved bytes. If the candidate changes after submission, publicatio
 stops and the record stays approved; submit a fresh candidate and obtain a new review.
 
 An `edit` verdict approves the edited candidate. `decide --verdict edit` applies
-`--edit-diff`, a unified diff against the reviewed text, and refuses one that does
-not apply cleanly. The record keeps `candidate_sha256` for the submitted bytes and
+`--edit-diff`, a unified diff made against the submitted candidate file (for example
+`diff -u candidate.md edited.md` or `git diff --no-index`), and refuses one that does
+not apply cleanly. Build the edit from the file, not from the review diff in the
+record body. The record keeps `candidate_sha256` for the submitted bytes and
 adds `approved_sha256` for the edited bytes (UTF-8, LF line endings). `publish`
 re-applies the edit to the verified candidate, checks the result against
 `approved_sha256`, and writes those bytes. Leave the source file as submitted:
