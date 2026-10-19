@@ -63,12 +63,16 @@ def validate(record: dict[str, Any]) -> None:
         raise SchemaError("candidate_ref must be a non-empty string")
 
     # Optional so historical records stay readable; when present it must be a digest.
-    if "candidate_sha256" in record:
-        digest = record["candidate_sha256"]
-        if not isinstance(digest, str) or not SHA256_RE.match(digest):
-            raise SchemaError(
-                f"candidate_sha256 must be 64 lowercase hex characters: {digest!r}"
-            )
+    for field in ("candidate_sha256", "approved_sha256"):
+        if field in record:
+            digest = record[field]
+            if not isinstance(digest, str) or not SHA256_RE.match(digest):
+                raise SchemaError(
+                    f"{field} must be 64 lowercase hex characters: {digest!r}"
+                )
+    # The edited digest never replaces the submitted one; both stay on file.
+    if "approved_sha256" in record and "candidate_sha256" not in record:
+        raise SchemaError("approved_sha256 requires candidate_sha256")
 
     pref = record["provenance_ref"]
     if not isinstance(pref, str) or not pref.strip():

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from review_queue import cli
+from review_queue import records as records_mod
 
 
 def test_cli_help_exits_zero(capsys: pytest.CaptureFixture) -> None:
@@ -81,3 +82,43 @@ def test_cli_submit_refuses_empty_provenance(tmp_path: Path, capsys: pytest.Capt
         ]
     )
     assert rc != 0
+
+
+def test_cli_edit_verdict_publishes_the_edited_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Committed records hold a repo-relative candidate_ref, so decide has to
+    # resolve it against --repo-root, not the shell's working directory.
+    (tmp_path / "examples").mkdir()
+    (tmp_path / "examples" / "c.md").write_text("alpha\nbeta\n", encoding="utf-8")
+    root = ["--repo-root", str(tmp_path)]
+    assert cli.main(root + ["submit", "--candidate", "examples/c.md",
+                            "--provenance", "trace://test/run/cli-edit",
+                            "--target", "file://./out.md"]) == 0
+    (rec_path,) = (tmp_path / "queue").glob("rec-*.md")
+    rec = records_mod.load(rec_path)
+    rec.fm["candidate_ref"] = "examples/c.md"
+    records_mod.save(rec)
+    monkeypatch.chdir(tmp_path.parent)
+    edit = "@@ -2 +2 @@\n-beta\n+beta, edited\n"
+    assert cli.main(root + ["decide", "--record-id", rec.id, "--verdict", "edit",
+                            "--reviewer", "reviewer", "--edit-diff", edit]) == 0
+    assert cli.main(root + ["publish", "--record-id", rec.id]) == 0
+    assert (tmp_path / "out.md").read_bytes() == b"alpha\nbeta, edited\n"
+
+
+def test_cli_edit_verdict_refuses_a_diff_that_does_not_apply(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    (tmp_path / "examples").mkdir()
+    (tmp_path / "examples" / "c.md").write_text("alpha\n", encoding="utf-8")
+    root = ["--repo-root", str(tmp_path)]
+    assert cli.main(root + ["submit", "--candidate", "examples/c.md",
+                            "--provenance", "trace://test/run/cli-bad-edit",
+                            "--target", "file://./out.md"]) == 0
+    (rec_path,) = (tmp_path / "queue").glob("rec-*.md")
+    rc = cli.main(root + ["decide", "--record-id", rec_path.stem, "--verdict", "edit",
+                          "--reviewer", "reviewer", "--edit-diff=-alpha\n+gamma\n"])
+    assert rc == 2
+    assert "no @@ hunk" in capsys.readouterr().err
+    assert records_mod.load(rec_path).fm["status"] == "pending"
