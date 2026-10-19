@@ -33,7 +33,10 @@ and gate.
 
 - **R-RQ-006** A verdict has fields `reviewer`, `decided_at`,
   `decision`, and optional `edit_diff`. `decision` is one of
-  `approve`, `reject`, `edit`.
+  `approve`, `reject`, `edit`. `reviewer` is a self-asserted label,
+  not an authenticated identity; `decide` trims it and requires 1-64
+  characters, a letter, digit or underscore first, then letters,
+  digits or `. _ @ + -`.
 - **R-RQ-007** An `edit` decision attaches an `edit_diff` and is
   treated as an implicit `approve` against the edited candidate. The
   original candidate is marked `superseded`.

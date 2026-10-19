@@ -122,3 +122,17 @@ def test_cli_edit_verdict_refuses_a_diff_that_does_not_apply(
     assert rc == 2
     assert "no @@ hunk" in capsys.readouterr().err
     assert records_mod.load(rec_path).fm["status"] == "pending"
+
+
+def test_cli_decide_refuses_a_blank_reviewer(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    (tmp_path / "examples").mkdir()
+    (tmp_path / "examples" / "c.md").write_text("alpha\n", encoding="utf-8")
+    root = ["--repo-root", str(tmp_path)]
+    assert cli.main(root + ["submit", "--candidate", "examples/c.md",
+                            "--provenance", "trace://test/run/cli-reviewer",
+                            "--target", "file://./out.md"]) == 0
+    (rec_path,) = (tmp_path / "queue").glob("rec-*.md")
+    rc = cli.main(root + ["decide", "--record-id", rec_path.stem, "--verdict", "approve", "--reviewer", "   "])
+    assert rc == 2
+    assert "reviewer is required" in capsys.readouterr().err
+    assert records_mod.load(rec_path).fm["status"] == "pending"

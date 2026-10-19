@@ -53,10 +53,12 @@ the contract surface; downstream factory runs read them as input.
   the publisher exits with a stub message.
 - No GitHub PR target, no Substack target. Both are deferred to spec
   0004 per the requirements ledger.
-- The `decide` command does not yet enforce reviewer identity. Any
-  string passed to `--reviewer` is accepted. Methodology says drop
-  self-review rows, but the CLI does not enforce that filter at
-  ingestion.
+- The `decide` command does not authenticate reviewers. `--reviewer`
+  is a self-asserted label: it is trimmed and must be 1-64 characters
+  (a letter, digit or underscore first, then letters, digits or
+  `. _ @ + -`), but any name in that format is recorded as given.
+  Methodology says drop self-review rows, but the CLI does not enforce
+  that filter at ingestion.
 - No multi-reviewer consensus. A single verdict flips status.
 - The diff field is computed by the caller for v0; the submitter
   helper only handles plain text candidates against an empty current

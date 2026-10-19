@@ -45,6 +45,12 @@ python -m review_queue score --dry-run                 # calibration metrics ove
 python -m review_queue report                          # read the calibration ledger
 ```
 
+`--reviewer` is a self-asserted label, not an authenticated identity: the CLI
+records the name it is given and does not check who typed it. It trims surrounding
+whitespace and accepts 1-64 characters, a letter, digit or underscore first, then
+letters, digits or `. _ @ + -` (for example `vignesh` or `jane.doe@example.com`);
+a blank value or one with spaces or line breaks is refused.
+
 `score` prints the approve-unchanged rate with its sample size and a one-sided 95%
 lower confidence bound (exact Clopper-Pearson). 19 of 20 meets the DEC-RQ-001 bar,
 yet its lower bound is about 0.784; see `docs/METHODOLOGY.md`.

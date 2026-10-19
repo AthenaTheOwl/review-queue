@@ -83,7 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
     d = sub.add_parser("decide", help="Record a verdict on a queued record.")
     d.add_argument("--record-id", required=True)
     d.add_argument("--verdict", required=True, choices=["approve", "reject", "edit"])
-    d.add_argument("--reviewer", required=True)
+    d.add_argument(
+        "--reviewer",
+        required=True,
+        help="Name to record on the verdict: 1-64 characters, a letter, digit or underscore first, then letters, digits or . _ @ + - (surrounding whitespace is trimmed). A self-asserted label, not an authenticated identity.",
+    )
     d.add_argument(
         "--edit-diff",
         default=None,

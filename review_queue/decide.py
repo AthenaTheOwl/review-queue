@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
@@ -9,6 +10,26 @@ from typing import Iterable
 from review_queue import diff as diff_mod
 from review_queue import state
 from review_queue.records import Record, find, save
+
+
+# A reviewer is a self-asserted label, not an authenticated identity: the CLI
+# records whatever name the caller types. The format only keeps the label
+# usable as a name: 1-64 characters, a letter, digit or underscore first, then
+# letters, digits and . _ @ + - (no spaces, newlines or other control text).
+REVIEWER_RE = re.compile(r"\w[\w.@+-]{0,63}")
+
+
+def normalize_reviewer(reviewer: str | None) -> str:
+    """Trim surrounding whitespace and check the reviewer label's format."""
+    value = (reviewer or "").strip()
+    if not value:
+        raise ValueError("reviewer is required (got an empty or blank value)")
+    if not REVIEWER_RE.fullmatch(value):
+        raise ValueError(
+            f"reviewer {value!r} is not a valid label: use 1-64 characters, a letter, "
+            "digit or underscore first, then letters, digits or . _ @ + - (no spaces)"
+        )
+    return value
 
 
 def _now_iso() -> str:
@@ -60,8 +81,7 @@ def decide(
         raise ValueError(f"decision must be approve|reject|edit, got {decision!r}")
     if decision == "edit" and not edit_diff:
         raise ValueError("decision=edit requires --edit-diff")
-    if not reviewer:
-        raise ValueError("reviewer is required")
+    reviewer = normalize_reviewer(reviewer)
 
     record = find(record_id, search_roots)
     if record is None:

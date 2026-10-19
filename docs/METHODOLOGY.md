@@ -73,7 +73,9 @@ behavior on the verdicts list.
 
 - A row produced by a reviewer reviewing their own candidate. The
   v0 CLI does not enforce this (no reviewer-identity registry yet),
-  but the methodology says drop it.
+  but the methodology says drop it. The `reviewer` field is a
+  self-asserted label that `decide` checks only for format (trimmed,
+  1-64 characters, no spaces); it is not an authenticated identity.
 - A row whose `provenance_ref` does not start with a known URI scheme
   (`trace://`, `evidence://`, `cdcp://`). The schema only enforces
   URI-shape; the methodology is stricter about which schemes count.

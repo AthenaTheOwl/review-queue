@@ -441,3 +441,47 @@ def test_publish_refuses_repo_target(repo: Path) -> None:
             decided_dir=decided_dir,
             repo_root=repo,
         )
+
+
+def _pending(repo: Path) -> records.Record:
+    return submit.submit(
+        candidate_path=repo / "examples" / "candidate.md",
+        provenance_ref="trace://test/run/reviewer",
+        target="file://./out.md",
+        record_type="memory-update",
+        queue_dir=repo / "queue",
+        now="2026-08-14T12:00:00Z",
+    )
+
+
+@pytest.mark.parametrize(
+    "reviewer",
+    ["", "   ", "\t\n", "two words", "alice\nstatus: published", "x: y", "-dash-first", "a" * 65],
+)
+def test_decide_refuses_a_blank_or_malformed_reviewer(repo: Path, reviewer: str) -> None:
+    rec = _pending(repo)
+    with pytest.raises(ValueError, match="reviewer"):
+        decide.decide(record_id=rec.fm["id"], decision="approve", reviewer=reviewer,
+                      search_roots=[repo / "queue"], now="2026-08-14T12:30:00Z")
+    reloaded = records.load(rec.path)
+    assert reloaded.fm["status"] == "pending"
+    assert not reloaded.fm.get("verdicts")
+
+
+def test_decide_trims_the_reviewer_label(repo: Path) -> None:
+    rec = _pending(repo)
+    decide.decide(record_id=rec.fm["id"], decision="approve", reviewer="  vignesh \n",
+                  search_roots=[repo / "queue"], now="2026-08-14T12:30:00Z")
+    assert records.load(rec.path).fm["verdicts"][0]["reviewer"] == "vignesh"
+
+
+def test_reviewer_format_accepts_every_committed_label() -> None:
+    # backward compatibility: every reviewer already on a committed record, and
+    # the labels the docs use, still pass
+    repo_root = Path(__file__).resolve().parents[1]
+    roots = [repo_root / d for d in ("queue", "decided", "examples")]
+    committed = {v["reviewer"] for r in records.iter_records(roots) for v in r.fm.get("verdicts") or []}
+    assert committed  # the committed records do carry verdicts
+    for label in committed | {"reviewer", "test", "you", "jane.doe@example.com", "ops_bot-2", "José"}:
+        assert decide.normalize_reviewer(label) == label
+    assert decide.normalize_reviewer("a" * 64) == "a" * 64
