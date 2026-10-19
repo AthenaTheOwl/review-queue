@@ -37,6 +37,11 @@
       "minLength": 1,
       "description": "Pointer at the candidate payload. Relative path for in-repo candidates, URI for external candidates."
     },
+    "candidate_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the exact submitted candidate bytes. Required by file publishing; optional here so historical records remain readable."
+    },
     "provenance_ref": {
       "type": "string",
       "minLength": 1,

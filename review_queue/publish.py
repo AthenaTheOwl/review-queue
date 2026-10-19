@@ -1,6 +1,7 @@
 """publish: resolve an approved record's target and ship the candidate."""
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Iterable
 
@@ -46,8 +47,14 @@ def publish(
         candidate_path = (repo_root / candidate_ref).resolve()
         if not candidate_path.exists():
             raise PublishError(f"candidate file missing: {candidate_path}")
+        expected = record.fm.get("candidate_sha256")
+        if not expected:
+            raise PublishError("candidate digest missing; resubmit the legacy candidate and review the new record")
+        candidate_bytes = candidate_path.read_bytes()
+        if hashlib.sha256(candidate_bytes).hexdigest() != expected:
+            raise PublishError("candidate changed since submission; resubmit it for review")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(candidate_path.read_text(encoding="utf-8"), encoding="utf-8")
+        dest.write_bytes(candidate_bytes)
     elif target.startswith("repo://"):
         raise PublishError(
             "repo:// target publish is not wired in v0; see STATUS.md known limits"
