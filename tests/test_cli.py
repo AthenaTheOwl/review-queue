@@ -124,6 +124,32 @@ def test_cli_edit_verdict_refuses_a_diff_that_does_not_apply(
     assert records_mod.load(rec_path).fm["status"] == "pending"
 
 
+def test_cli_publish_refuses_a_legacy_edit_and_asks_for_re_review(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    (tmp_path / "examples").mkdir()
+    (tmp_path / "examples" / "c.md").write_text("alpha\nbeta\n", encoding="utf-8")
+    root = ["--repo-root", str(tmp_path)]
+    assert cli.main(root + ["submit", "--candidate", "examples/c.md",
+                            "--provenance", "trace://test/run/cli-legacy-edit",
+                            "--target", "file://./out.md"]) == 0
+    (rec_path,) = (tmp_path / "queue").glob("rec-*.md")
+    rec = records_mod.load(rec_path)
+    rec.fm["candidate_ref"] = "examples/c.md"
+    rec.fm.pop("candidate_sha256")
+    records_mod.save(rec)
+    assert cli.main(root + ["decide", "--record-id", rec.id, "--verdict", "edit",
+                            "--reviewer", "reviewer",
+                            "--edit-diff", "@@ -2 +2 @@\n-beta\n+beta, edited\n"]) == 0
+    capsys.readouterr()
+    assert cli.main(root + ["publish", "--record-id", rec.id]) == 2
+    err = capsys.readouterr().err
+    assert "treated as not approved" in err
+    assert "re-review" in err
+    assert not (tmp_path / "out.md").exists()
+    assert records_mod.load(rec_path).fm["status"] == "approved"
+
+
 def test_cli_decide_refuses_a_blank_reviewer(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     (tmp_path / "examples").mkdir()
     (tmp_path / "examples" / "c.md").write_text("alpha\n", encoding="utf-8")
