@@ -45,8 +45,10 @@ and gate.
   the record keeps the submitted bytes' `candidate_sha256` and adds
   the edited bytes' `approved_sha256`, and `publish` writes the edited
   bytes. A legacy record without `candidate_sha256` keeps the
-  edit_diff as unchecked text and cannot be published until the
-  candidate is resubmitted. Splitting the edited candidate into its
+  edit_diff as unchecked text and gains no `approved_sha256`. An edit
+  verdict without `approved_sha256` (legacy or otherwise) is treated
+  as not approved: `publish` refuses it and asks for the candidate to
+  be resubmitted and re-reviewed (DEC-RQ-002). Splitting the edited candidate into its
   own record and marking the original `superseded` is not wired yet.
 
 ## Targets

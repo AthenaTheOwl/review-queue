@@ -34,6 +34,13 @@ the contract surface; downstream factory runs read them as input.
 - First calibration row at `examples/rec-2026-08-14-001.md` is the
   source data for that scoring run; it validates against the schema
   and contributes one row to the `memory-update` row set.
+- Edit verdicts pin the edited bytes (R-RQ-007): `decide` records
+  `approved_sha256` and `publish` writes only bytes that match it.
+  Legacy edit verdicts without `approved_sha256` are settled by
+  DEC-RQ-002: they are treated as not approved, `publish` refuses them
+  (exit 2, nothing written, record stays `approved`), and the message
+  asks for resubmission and re-review. `decided/rec-2026-08-17-001.md`
+  is one such record.
 - Gates: `scripts/validate_schemas.py`, `scripts/validate_records.py`,
   `scripts/validate_decisions.py`, `scripts/voice_lint.py` all exit
   zero on a clean tree. The `tests/test_scoring.py` suite covers the
@@ -91,7 +98,7 @@ the contract surface; downstream factory runs read them as input.
 - Add a third calibration ledger row exercising the `reject` verdict
   path so report readers can see all three verdict classes before the
   twenty-row threshold is reachable.
-- Land DEC-RQ-002 documenting the target-scheme decision and the
+- Land DEC-RQ-003 documenting the target-scheme decision and the
   conditions under which GitHub PR targets become safe to add.
 
 - Resolve factory defect: missing PRODUCT_BRIEF.md,SYSTEM_MAP.md

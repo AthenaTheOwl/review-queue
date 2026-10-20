@@ -145,3 +145,6 @@ the ledger and obtain the same numbers.
 - Spec `0002-design/` — the runnable CLI and calibration ledger spec.
 - DEC-RQ-001 — why human-gate is the default, and the auto-promote
   thresholds the scoring run is measured against.
+- DEC-RQ-002 — an edit verdict without a pinned `approved_sha256`
+  (recorded before R-RQ-007's pin) is not an approval; publish refuses
+  it and asks for re-review.

@@ -327,9 +327,10 @@ def test_publish_refuses_edit_verdict_without_edited_digest(repo: Path) -> None:
     rec = records.load(rec.path)
     rec.fm.pop("approved_sha256")
     records.save(rec)
-    with pytest.raises(publish.PublishError, match="edited candidate digest missing"):
+    with pytest.raises(publish.PublishError) as exc_info:
         publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
                         decided_dir=repo / "decided", repo_root=repo)
+    assert str(exc_info.value) == publish.LEGACY_EDIT_REFUSAL
     assert not (repo / "out.md").exists()
     assert records.load(rec.path).fm["status"] == "approved"
 
@@ -360,10 +361,90 @@ def test_legacy_edit_without_digests_is_recorded_but_not_published(repo: Path) -
                             search_roots=[repo / "queue"])
     assert decided.fm["status"] == "approved"
     assert "approved_sha256" not in decided.fm
-    with pytest.raises(publish.PublishError, match="candidate digest missing"):
+    with pytest.raises(publish.PublishError) as exc_info:
+        publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                        decided_dir=repo / "decided", repo_root=repo)
+    # DEC-RQ-002: the legacy edit is refused as an edit, not as a generic legacy approval
+    assert str(exc_info.value) == publish.LEGACY_EDIT_REFUSAL
+    assert not (repo / "out.md").exists()
+
+
+def _legacy_edit_record(repo: Path, *, keep_candidate_digest: bool) -> records.Record:
+    """An approved record whose edit verdict predates the approved_sha256 pin."""
+    rec = submit.submit(candidate_path=repo / "examples" / "candidate.md",
+                        provenance_ref="trace://test/run/legacy-pin", target="file://./out.md",
+                        record_type="test-case", queue_dir=repo / "queue")
+    if not keep_candidate_digest:
+        rec.fm.pop("candidate_sha256")
+    rec.fm["status"] = "approved"
+    rec.fm["verdicts"] = [{"reviewer": "reviewer", "decided_at": "2026-08-20T10:00:00Z",
+                           "decision": "edit", "edit_diff": EDIT_DIFF}]
+    records.save(rec)
+    return records.load(rec.path)
+
+
+@pytest.mark.parametrize("keep_candidate_digest", [True, False])
+def test_legacy_edit_verdict_without_digest_is_refused_for_re_review(
+    repo: Path, keep_candidate_digest: bool
+) -> None:
+    # DEC-RQ-002 option (a): an edit verdict with no pinned edited digest is
+    # not an approval. Publish fails closed, names the reason, asks for re-review.
+    rec = _legacy_edit_record(repo, keep_candidate_digest=keep_candidate_digest)
+    assert "approved_sha256" not in rec.fm
+    with pytest.raises(publish.PublishError, match="treated as not approved") as exc_info:
+        publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                        decided_dir=repo / "decided", repo_root=repo)
+    assert "re-review" in str(exc_info.value)
+    # nothing shipped: neither the pre-edit bytes nor an edit computed at publish time
+    assert not (repo / "out.md").exists()
+    reloaded = records.load(rec.path)
+    assert reloaded.fm["status"] == "approved"
+    assert "approved_sha256" not in reloaded.fm
+    assert not (repo / "decided" / f"{rec.fm['id']}.md").exists()
+
+
+def test_legacy_edit_is_refused_even_when_the_candidate_file_is_gone(repo: Path) -> None:
+    # The refusal is a property of the verdict, so it does not depend on the candidate file.
+    rec = _legacy_edit_record(repo, keep_candidate_digest=True)
+    (repo / "examples" / "candidate.md").unlink()
+    with pytest.raises(publish.PublishError, match="treated as not approved"):
+        publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
+                        decided_dir=repo / "decided", repo_root=repo)
+
+
+def test_re_reviewed_edit_with_matching_digest_publishes(repo: Path) -> None:
+    # The path the refusal points to: resubmit, re-review with an edit, publish.
+    legacy = _legacy_edit_record(repo, keep_candidate_digest=False)
+    with pytest.raises(publish.PublishError, match="re-review"):
+        publish.publish(record_id=legacy.fm["id"], queue_dir=repo / "queue",
+                        decided_dir=repo / "decided", repo_root=repo)
+    fresh = submit.submit(candidate_path=repo / "examples" / "candidate.md",
+                          provenance_ref="trace://test/run/re-review", target="file://./out.md",
+                          record_type="test-case", queue_dir=repo / "queue")
+    decided = decide.decide(record_id=fresh.fm["id"], decision="edit", reviewer="reviewer",
+                            edit_diff=EDIT_DIFF, search_roots=[repo / "queue"], repo_root=repo)
+    assert decided.fm["approved_sha256"] == hashlib.sha256(EDITED).hexdigest()
+    published = publish.publish(record_id=fresh.fm["id"], queue_dir=repo / "queue",
+                                decided_dir=repo / "decided", repo_root=repo)
+    assert published.fm["status"] == "published"
+    assert (repo / "out.md").read_bytes() == EDITED
+
+
+def test_edit_with_mismatched_digest_is_refused(repo: Path) -> None:
+    # The pinned digest is checked, not just present: a digest of other bytes stops publish.
+    rec = submit.submit(candidate_path=repo / "examples" / "candidate.md",
+                        provenance_ref="trace://test/run/edit-mismatch", target="file://./out.md",
+                        record_type="test-case", queue_dir=repo / "queue")
+    decide.decide(record_id=rec.fm["id"], decision="edit", reviewer="reviewer",
+                  edit_diff=EDIT_DIFF, search_roots=[repo / "queue"], repo_root=repo)
+    rec = records.load(rec.path)
+    rec.fm["approved_sha256"] = hashlib.sha256(b"# New memory\n\nSomething else.\n").hexdigest()
+    records.save(rec)
+    with pytest.raises(publish.PublishError, match="does not match approved_sha256"):
         publish.publish(record_id=rec.fm["id"], queue_dir=repo / "queue",
                         decided_dir=repo / "decided", repo_root=repo)
     assert not (repo / "out.md").exists()
+    assert records.load(rec.path).fm["status"] == "approved"
 
 
 @pytest.mark.parametrize("strip_final_newline", [False, True])
@@ -485,3 +566,23 @@ def test_reviewer_format_accepts_every_committed_label() -> None:
     for label in committed | {"reviewer", "test", "you", "jane.doe@example.com", "ops_bot-2", "José"}:
         assert decide.normalize_reviewer(label) == label
     assert decide.normalize_reviewer("a" * 64) == "a" * 64
+
+
+def test_committed_legacy_edit_record_is_refused(tmp_path: Path) -> None:
+    # decided/rec-2026-08-17-001.md is a real edit verdict recorded before edits were pinned.
+    src = Path(__file__).resolve().parents[1]
+    rec_id = "rec-2026-08-17-001"
+    (tmp_path / "queue").mkdir()
+    (tmp_path / "decided").mkdir()
+    (tmp_path / "queue" / f"{rec_id}.md").write_bytes((src / "decided" / f"{rec_id}.md").read_bytes())
+    rec = records.load(tmp_path / "queue" / f"{rec_id}.md")
+    assert rec.fm["status"] == "approved"
+    assert rec.fm["verdicts"][-1]["decision"] == "edit"
+    assert "approved_sha256" not in rec.fm
+    candidate = tmp_path / rec.fm["candidate_ref"]
+    candidate.parent.mkdir(parents=True)
+    candidate.write_bytes((src / rec.fm["candidate_ref"]).read_bytes())
+    with pytest.raises(publish.PublishError, match="treated as not approved"):
+        publish.publish(record_id=rec_id, queue_dir=tmp_path / "queue",
+                        decided_dir=tmp_path / "decided", repo_root=tmp_path)
+    assert not (tmp_path / "skills" / "redact-check.md").exists()

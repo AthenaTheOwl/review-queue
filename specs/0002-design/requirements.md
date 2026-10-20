@@ -25,12 +25,15 @@ R-RQ-010 still hold; this spec adds R-RQ-011 through R-RQ-020.
   `approved_sha256`, the digest of the edited bytes (R-RQ-007). A legacy
   record without `candidate_sha256` keeps the edit_diff as unchecked
   text, gains no `approved_sha256`, and cannot be published until the
-  candidate is resubmitted.
+  candidate is resubmitted and re-reviewed (DEC-RQ-002).
 - **R-RQ-016** `publish` is implemented end-to-end for `file://`
   targets. `repo://` targets parse but exit with a stub message. The
   record moves from `queue/` to `decided/` on success. It writes the
   approved bytes: the submitted candidate for an `approve`, the edited
   candidate for an `edit`, each checked against its recorded digest.
+  An `edit` verdict without `approved_sha256` is not an approval:
+  publish refuses it with a message asking for re-review, writes
+  nothing, and leaves the record `approved` (DEC-RQ-002).
 
 ## Calibration
 
