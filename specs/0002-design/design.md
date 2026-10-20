@@ -63,7 +63,8 @@ A record with an empty or non-URI provenance ref is refused at step 4
    does not apply exits non-zero with the record unchanged. A legacy
    record without `candidate_sha256` skips this step: the edit diff is
    stored as text, no `approved_sha256` is written, and publish refuses
-   the record until the candidate is resubmitted.
+   the record until the candidate is resubmitted and re-reviewed
+   (DEC-RQ-002).
 6. A verdict entry is appended; the record is saved.
 
 The state-machine check runs again after the mutation
@@ -77,12 +78,16 @@ verdicts/status mismatch.
    `approved`.
 3. `file://` targets resolve to an absolute path (relative paths are
    resolved against the repo root).
-4. The candidate is read once from `candidate_ref` and checked against
+4. If the latest approving verdict is an `edit` and the record has no
+   `approved_sha256`, publish refuses before reading the candidate: the
+   verdict approved no pinned bytes and is treated as not approved
+   (DEC-RQ-002). The error asks for resubmission and re-review.
+5. The candidate is read once from `candidate_ref` and checked against
    `candidate_sha256`. For an `edit` verdict the edit diff is applied
    again and the result checked against `approved_sha256`. Those
    approved bytes are written to the target path; a digest mismatch
    exits non-zero with nothing written.
-5. The record's status flips to `published`; the record file moves
+6. The record's status flips to `published`; the record file moves
    from `queue/<id>.md` to `decided/<id>.md`.
 
 `repo://` raises `PublishError` with a stub message naming the
